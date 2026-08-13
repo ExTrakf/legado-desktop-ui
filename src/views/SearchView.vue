@@ -5,6 +5,7 @@ import { useSearchStore } from '@/stores/search'
 import { useBookshelfStore } from '@/stores/bookshelf'
 import { useRouter } from 'vue-router'
 import { coverUrl } from '@/api/books'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 import type { Book, SearchBook } from '@/types'
 
 const router = useRouter()
@@ -65,7 +66,7 @@ async function openBook(b: SearchBook) {
       return
     }
   }
-  void router.push({ name: 'reader', params: { url: encodeURIComponent(b.bookUrl) } })
+  void router.push({ path: `/book/${encodeURIComponent(b.bookUrl)}` })
 }
 
 async function addToShelf(b: SearchBook) {
@@ -82,87 +83,78 @@ async function addToShelf(b: SearchBook) {
 </script>
 
 <template>
-  <div class="search-view">
-    <v-text-field
-      v-model="input"
-      prepend-inner-icon="mdi-magnify"
-      placeholder="书名 / 作者 / 关键字"
-      variant="outlined"
-      hide-details
-      clearable
-      class="search-view__input"
-      @keydown.enter="startSearch"
-    >
-      <template #append-inner>
-        <v-btn
-          icon="mdi-send"
-          variant="text"
-          :loading="running"
-          :disabled="!input.trim()"
-          aria-label="搜索"
-          @click="startSearch"
-        />
-      </template>
-    </v-text-field>
+  <div class="view-wrap search-view">
+    <div class="micl-textfield-outlined search-view__input">
+      <label for="search-keyword">书名 / 作者 / 关键字</label>
+      <input
+        id="search-keyword"
+        type="search"
+        v-model="input"
+        placeholder="回车开始多源搜索"
+        @keydown.enter="startSearch"
+      />
+      <button
+        type="button"
+        class="micl-iconbutton-standard-m search-view__send"
+        :disabled="!input.trim() || running"
+        aria-label="搜索"
+        @click="startSearch"
+      >
+        <i class="mdi mdi-send" aria-hidden="true" />
+      </button>
+    </div>
 
-    <div v-if="authError" class="search-view__auth">
-      <v-icon icon="mdi-shield-lock-outline" size="40" color="warning" />
-      <span class="search-view__auth-title">{{ error }}</span>
-      <v-btn variant="tonal" prepend-icon="mdi-cog-outline" @click="router.push('/settings')">
+    <div v-if="authError" class="empty-state">
+      <i class="mdi mdi-shield-lock-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__title">{{ error }}</span>
+      <button type="button" class="micl-button-tonal-m" @click="router.push('/settings')">
+        <i class="mdi mdi-cog-outline micl-button__icon" aria-hidden="true" />
         去配置令牌
-      </v-btn>
+      </button>
     </div>
 
-    <div v-else-if="running && groups.length === 0" class="search-view__state">
-      <v-progress-circular indeterminate color="primary" size="36" />
-      <span class="search-view__state-text">正在多源搜索“{{ keyword }}”…</span>
+    <div v-else-if="running && groups.length === 0" class="empty-state">
+      <progress class="micl-circular-progress" aria-label="正在搜索" />
+      <span class="empty-state__hint">正在多源搜索“{{ keyword }}”…</span>
     </div>
 
-    <div v-else-if="!running && groups.length === 0" class="search-view__state">
-      <v-icon icon="mdi-magnify" size="48" color="on-surface-variant" />
-      <span class="m3-headline-small search-view__state-title">搜索全网小说</span>
-      <span class="search-view__state-text">输入关键字，回车开始多源搜索</span>
+    <div v-else-if="!running && groups.length === 0" class="empty-state">
+      <i class="mdi mdi-magnify empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__title">搜索全网小说</span>
+      <span class="empty-state__hint">输入关键字，回车开始多源搜索</span>
     </div>
 
     <div v-else class="search-view__results">
       <div class="search-view__summary">
-        <span class="m3-label-large search-view__summary-text">
-          共找到 <span class="m3-mono">{{ total }}</span> 本 · {{ keyword }}
+        <span class="search-view__summary-text">
+          共找到 <span class="mono">{{ total }}</span> 本 · {{ keyword }}
         </span>
-        <v-progress-linear
-          v-if="running"
-          indeterminate
-          color="primary"
-          height="2"
-          class="search-view__summary-bar"
-        />
+        <progress v-if="running" class="micl-linear-progress search-view__summary-bar" aria-label="搜索中" />
       </div>
 
-      <section
-        v-for="group in groups"
-        :key="group.originName"
-        class="search-view__group"
-      >
+      <section v-for="group in groups" :key="group.originName" class="search-view__group">
         <h3 class="search-view__group-title">
-          <v-icon icon="mdi-source-branch" size="18" />
+          <i class="mdi mdi-source-branch" aria-hidden="true" />
           {{ group.originName }}
-          <span class="m3-mono search-view__group-count">{{ group.books.length }}</span>
+          <span class="mono search-view__group-count">{{ group.books.length }}</span>
         </h3>
         <div
           v-for="b in group.books"
           :key="b.bookUrl"
-          class="search-view__row m3-interactive"
+          class="micl-card-outlined search-view__row clickable"
           role="button"
           tabindex="0"
           @click="openBook(b)"
           @keydown.enter="openBook(b)"
         >
           <img
+            v-if="b.coverUrl"
             class="search-view__cover"
-            :src="b.coverUrl ? coverUrl(b.coverUrl) : undefined"
+            :src="coverUrl(b.coverUrl)"
             :alt="`《${b.name}》封面`"
             loading="lazy"
           />
+          <div v-else class="search-view__cover search-view__cover--empty" aria-hidden="true" />
           <div class="search-view__meta">
             <span class="search-view__name text-truncate">{{ b.name }}</span>
             <span class="search-view__author text-truncate">{{ b.author }}</span>
@@ -171,69 +163,40 @@ async function addToShelf(b: SearchBook) {
             </span>
           </div>
           <div class="search-view__actions">
-            <v-btn
-              icon="mdi-bookshelf"
-              variant="tonal"
-              size="small"
-              :loading="addingUrl === b.bookUrl"
-              aria-label="加入书架"
+            <button
+              type="button"
+              class="micl-iconbutton-tonal-s"
+              :disabled="addingUrl === b.bookUrl"
+              :aria-label="`加入书架 ${b.name}`"
               @click.stop="addToShelf(b)"
-            />
+            >
+              <i class="mdi mdi-bookshelf" aria-hidden="true" />
+            </button>
           </div>
         </div>
       </section>
     </div>
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
-    >
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
 <style scoped>
 .search-view {
   max-width: 720px;
-  margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
-.search-view__auth {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 48px 0;
-  color: var(--md-sys-color-on-surface-variant);
-  text-align: center;
+.search-view__input {
+  position: relative;
 }
 
-.search-view__auth-title {
-  font-size: var(--md-sys-typescale-body-medium-size);
-}
-
-.search-view__state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 64px 0;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.search-view__state-title {
-  color: var(--md-sys-color-on-surface);
-}
-
-.search-view__state-text {
-  font-size: var(--md-sys-typescale-body-medium-size);
+.search-view__send {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .search-view__summary {
@@ -270,9 +233,7 @@ async function addToShelf(b: SearchBook) {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px;
-  border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-sys-color-surface-container-low);
+  padding: 10px 16px;
   cursor: pointer;
 }
 
@@ -280,8 +241,13 @@ async function addToShelf(b: SearchBook) {
   width: 44px;
   height: 60px;
   object-fit: cover;
+  flex: 0 0 auto;
   border-radius: var(--md-sys-shape-corner-extra-small);
   background: var(--md-sys-color-surface-container-high);
+}
+
+.search-view__cover--empty {
+  display: block;
 }
 
 .search-view__meta {
@@ -307,5 +273,6 @@ async function addToShelf(b: SearchBook) {
 .search-view__actions {
   display: flex;
   gap: 4px;
+  flex: 0 0 auto;
 }
 </style>

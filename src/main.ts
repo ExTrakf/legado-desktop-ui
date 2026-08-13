@@ -2,12 +2,10 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import vuetify from './plugins/vuetify'
 import '@mdi/font/css/materialdesignicons.min.css'
+import 'material-inspired-component-library/dist/micl.css'
+import 'material-inspired-component-library/dist/micl'
 import './styles/global.css'
+import './styles/app.css'
 
-const app = createApp(App)
-app.use(createPinia())
-app.use(router)
-app.use(vuetify)
-app.mount('#app')
+createApp(App).use(createPinia()).use(router).mount('#app')

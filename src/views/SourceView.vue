@@ -4,6 +4,8 @@ import { storeToRefs } from 'pinia'
 import { useSourceStore } from '@/stores/source'
 import { saveBookSource } from '@/api/sources'
 import { addLocalBook, importJsSource } from '@/api/imports'
+import AppDialog from '@/components/app/AppDialog.vue'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 import DebugSheet from '@/components/app/DebugSheet.vue'
 import type { BookSource } from '@/types'
 
@@ -152,45 +154,37 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="source-view">
-    <div class="source-view__head">
-      <div>
-        <h2 class="m3-headline-small source-view__title">书源管理</h2>
-        <p class="source-view__subtitle">
-          已启用 <span class="m3-mono">{{ enabledCount }}</span> / {{ sources.length }} 个书源
+  <div class="view-wrap source-view">
+    <div class="view-head">
+      <div class="view-head__titles">
+        <h2 class="view-head__title">书源管理</h2>
+        <p class="view-head__sub">
+          已启用 <span class="mono">{{ enabledCount }}</span> / {{ sources.length }} 个书源
         </p>
       </div>
-      <v-spacer />
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        class="m3-interactive"
-        @click="store.load(true)"
-      >
-        刷新
-      </v-btn>
-      <v-btn variant="tonal" prepend-icon="mdi-import" class="m3-interactive" @click="openJsImport">
-        导入 JS 源
-      </v-btn>
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-file-plus-outline"
-        :loading="localImporting"
-        class="m3-interactive"
-        @click="pickLocalBook"
-      >
-        导入本地书
-      </v-btn>
-      <v-btn
-        variant="flat"
-        color="primary"
-        prepend-icon="mdi-plus"
-        class="m3-interactive"
-        @click="openAdd"
-      >
-        新增书源
-      </v-btn>
+      <div class="head-actions">
+        <button type="button" class="micl-button-text-m" :disabled="loading" @click="store.load(true)">
+          <i class="mdi mdi-refresh micl-button__icon" aria-hidden="true" />
+          刷新
+        </button>
+        <button type="button" class="micl-button-text-m" @click="openJsImport">
+          <i class="mdi mdi-import micl-button__icon" aria-hidden="true" />
+          导入 JS 源
+        </button>
+        <button
+          type="button"
+          class="micl-button-text-m"
+          :disabled="localImporting"
+          @click="pickLocalBook"
+        >
+          <i class="mdi mdi-file-plus-outline micl-button__icon" aria-hidden="true" />
+          导入本地书
+        </button>
+        <button type="button" class="micl-button-filled-m" @click="openAdd">
+          <i class="mdi mdi-plus micl-button__icon" aria-hidden="true" />
+          新增书源
+        </button>
+      </div>
     </div>
 
     <input
@@ -201,182 +195,134 @@ async function confirmDelete() {
       @change="onLocalFile"
     />
 
-    <v-text-field
-      v-model="keyword"
-      prepend-inner-icon="mdi-magnify"
-      placeholder="筛选书源"
-      variant="outlined"
-      density="compact"
-      hide-details
-      class="source-view__search"
-    />
-
-    <div v-if="loading && sources.length === 0" class="source-view__state">
-      <v-progress-circular indeterminate color="primary" size="36" />
+    <div class="micl-textfield-outlined filter-field">
+      <label for="source-filter">筛选书源</label>
+      <input id="source-filter" type="search" v-model="keyword" placeholder="名称 / 分组 / 地址" />
     </div>
 
-    <div v-else-if="error && sources.length === 0" class="source-view__state">
-      <v-icon icon="mdi-server-off-outline" size="40" color="error" />
-      <span>{{ error }}</span>
-      <v-btn variant="tonal" @click="store.load(true)">重试</v-btn>
+    <div v-if="loading && sources.length === 0" class="empty-state">
+      <progress class="micl-circular-progress" aria-label="正在加载书源" />
     </div>
 
-    <div v-else-if="sources.length === 0" class="source-view__state">
-      <v-icon icon="mdi-source-branch-off-outline" size="40" color="on-surface-variant" />
-      <span>还没有书源</span>
+    <div v-else-if="error && sources.length === 0" class="empty-state">
+      <i class="mdi mdi-server-off-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">{{ error }}</span>
+      <button type="button" class="micl-button-tonal-m" @click="store.load(true)">重试</button>
     </div>
 
-    <div v-else class="source-view__list">
-      <v-card
+    <div v-else-if="sources.length === 0" class="empty-state">
+      <i class="mdi mdi-source-branch-off-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">还没有书源</span>
+    </div>
+
+    <div v-else class="card-list">
+      <div
         v-for="s in filtered()"
         :key="s.bookSourceUrl"
-        class="source-view__item"
-        rounded="lg"
+        class="micl-card-filled card-row"
       >
-        <v-card-item>
-          <template #prepend>
-            <v-icon
-              :icon="s.enabled ? 'mdi-source-branch' : 'mdi-source-branch-off-outline'"
-              :color="s.enabled ? 'primary' : 'on-surface-variant'"
-              size="28"
-            />
-          </template>
-          <v-card-title class="text-truncate">{{ s.bookSourceName }}</v-card-title>
-          <v-card-subtitle class="text-truncate m3-mono">
+        <i
+          :class="s.enabled ? 'mdi mdi-source-branch' : 'mdi mdi-source-branch-off-outline'"
+          :style="s.enabled ? 'color: var(--md-sys-color-primary)' : ''"
+          style="font-size: 28px"
+          aria-hidden="true"
+        />
+        <div class="card-row__main">
+          <div class="card-row__title text-truncate">
+            {{ s.bookSourceName }}
+          </div>
+          <div class="card-row__sub mono text-truncate">
             {{ s.bookSourceUrl }}
             <template v-if="s.bookSourceGroup"> · {{ s.bookSourceGroup }}</template>
-          </v-card-subtitle>
-          <template #append>
-            <v-btn
-              icon="mdi-bug-outline"
-              variant="text"
-              :aria-label="`调试 ${s.bookSourceName}`"
-              @click="openDebug(s)"
-            />
-            <v-btn
-              icon="mdi-delete-outline"
-              variant="text"
-              :aria-label="`删除 ${s.bookSourceName}`"
-              @click="confirming = s"
-            />
-            <v-switch
-              :model-value="s.enabled"
-              color="primary"
-              hide-details
-              :aria-label="`${s.enabled ? '停用' : '启用'} ${s.bookSourceName}`"
-              @update:model-value="onToggle(s, !!$event)"
-            />
-          </template>
-        </v-card-item>
-      </v-card>
+          </div>
+        </div>
+        <div class="card-row__actions">
+          <button
+            type="button"
+            class="micl-iconbutton-standard-s"
+            :aria-label="`调试 ${s.bookSourceName}`"
+            @click="openDebug(s)"
+          >
+            <i class="mdi mdi-bug-outline" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="micl-iconbutton-standard-s"
+            :aria-label="`删除 ${s.bookSourceName}`"
+            @click="confirming = s"
+          >
+            <i class="mdi mdi-delete-outline" aria-hidden="true" />
+          </button>
+          <input
+            type="checkbox"
+            class="micl-switch"
+            role="switch"
+            :id="`src-sw-${s.bookSourceUrl}`"
+            :checked="s.enabled"
+            :aria-label="`${s.enabled ? '停用' : '启用'} ${s.bookSourceName}`"
+            @change="onToggle(s, !!($event.target as HTMLInputElement).checked)"
+          />
+        </div>
+      </div>
     </div>
 
-    <v-dialog
-      :model-value="addOpen"
-      max-width="480"
-      persistent
-      @update:model-value="addOpen = $event"
-    >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">新增书源</v-card-title>
-        <v-card-text class="source-view__form">
-          <v-text-field
-            v-model="addForm.bookSourceName"
-            label="名称"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-          />
-          <v-text-field
-            v-model="addForm.bookSourceUrl"
-            label="地址"
-            placeholder="https://example.com"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            class="m3-mono"
-          />
-          <v-text-field
-            v-model="addForm.bookSourceGroup"
-            label="分组（可选）"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-          />
-          <v-textarea
-            v-model="addForm.bookSourceComment"
-            label="注释（可选）"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            rows="2"
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="addOpen = false">取消</v-btn>
-          <v-btn color="primary" variant="tonal" :loading="adding" @click="confirmAdd">
-            保存
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog :open="addOpen" title="新增书源" @update:open="addOpen = $event">
+      <div class="form-stack">
+        <div class="micl-textfield-filled">
+          <label for="src-name">名称</label>
+          <input id="src-name" type="text" v-model="addForm.bookSourceName" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="src-url">地址</label>
+          <input id="src-url" type="url" class="mono" v-model="addForm.bookSourceUrl" placeholder="https://example.com" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="src-group">分组（可选）</label>
+          <input id="src-group" type="text" v-model="addForm.bookSourceGroup" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="src-comment">注释（可选）</label>
+          <textarea id="src-comment" rows="2" v-model="addForm.bookSourceComment" />
+        </div>
+      </div>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="addOpen = false">取消</button>
+        <button type="button" class="micl-button-filled-m" :disabled="adding" @click="confirmAdd">
+          保存
+        </button>
+      </template>
+    </AppDialog>
 
-    <v-dialog
-      :model-value="jsOpen"
-      max-width="640"
-      persistent
-      scrollable
-      @update:model-value="jsOpen = $event"
-    >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">导入 JS 书源</v-card-title>
-        <v-card-text class="source-view__form">
-          <v-textarea
-            v-model="jsScript"
-            label="JS 书源脚本（text/plain）"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            rows="10"
-            class="m3-mono"
-          />
-          <v-text-field
-            v-model="jsUrl"
-            label="打开源地址（可选）"
-            placeholder="留空表示新建"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            class="m3-mono"
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="jsOpen = false">取消</v-btn>
-          <v-btn color="primary" variant="tonal" :loading="jsImporting" @click="confirmJsImport">
-            导入
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog :open="jsOpen" title="导入 JS 书源" @update:open="jsOpen = $event">
+      <div class="form-stack">
+        <div class="micl-textfield-filled">
+          <label for="js-script">JS 书源脚本（text/plain）</label>
+          <textarea id="js-script" class="mono" rows="10" v-model="jsScript" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="js-url">打开源地址（可选）</label>
+          <input id="js-url" type="text" class="mono" v-model="jsUrl" placeholder="留空表示新建" />
+        </div>
+      </div>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="jsOpen = false">取消</button>
+        <button type="button" class="micl-button-filled-m" :disabled="jsImporting" @click="confirmJsImport">
+          导入
+        </button>
+      </template>
+    </AppDialog>
 
-    <v-dialog
-      :model-value="!!confirming"
-      max-width="420"
-      persistent
-      @update:model-value="confirming = $event ? confirming : null"
+    <AppDialog
+      :open="!!confirming"
+      :title="'删除书源'"
+      :supporting="`确定删除书源「${confirming?.bookSourceName ?? ''}」吗？`"
+      @update:open="confirming = $event ? confirming : null"
     >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">删除书源</v-card-title>
-        <v-card-text>确定删除书源「{{ confirming?.bookSourceName }}」吗？</v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="confirming = null">取消</v-btn>
-          <v-btn color="error" variant="tonal" @click="confirmDelete">删除</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="confirming = null">取消</button>
+        <button type="button" class="micl-button-text-m" @click="confirmDelete">删除</button>
+      </template>
+    </AppDialog>
 
     <DebugSheet
       v-model="debugOpen"
@@ -386,70 +332,14 @@ async function confirmDelete() {
       key-hint="搜索词或书籍地址"
     />
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
-    >
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
 <style scoped>
-.source-view {
-  max-width: 820px;
-  margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.source-view__head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.source-view__title {
-  color: var(--md-sys-color-on-surface);
-}
-
-.source-view__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.source-view__search {
-  max-width: 360px;
-}
-
-.source-view__state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 64px 0;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.source-view__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.source-view__item {
-  background: var(--md-sys-color-surface-container-low);
-}
-
-.source-view__form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.filter-field {
+  margin: 0;
 }
 </style>

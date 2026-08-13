@@ -12,9 +12,12 @@ const emit = defineEmits<{ open: [Book]; delete: [Book] }>()
 const imgFailed = ref(false)
 const firstChar = computed(() => props.book.name.trim().charAt(0) || '阅')
 
-watch(() => props.book.coverUrl, () => {
-  imgFailed.value = false
-})
+watch(
+  () => props.book.coverUrl,
+  () => {
+    imgFailed.value = false
+  },
+)
 
 const coverSrc = computed(() => {
   if (!props.book.coverUrl) return ''
@@ -23,7 +26,6 @@ const coverSrc = computed(() => {
 
 const progressPercent = computed(() => {
   if (props.book.totalChapterNum <= 0) return 0
-  // durChapterIndex 是 0 基：读到最后一章（index = total-1）即 100%
   const read = Math.max(0, props.book.durChapterIndex + 1) / props.book.totalChapterNum
   return Math.round(Math.min(1, read) * 100)
 })
@@ -41,6 +43,7 @@ function onOpen() {
     :aria-label="`打开《${book.name}》`"
     @click="onOpen"
     @keydown.enter.prevent="onOpen"
+    @keydown.space.prevent="onOpen"
   >
     <div class="book-card__cover">
       <img
@@ -53,14 +56,14 @@ function onOpen() {
       <div v-else class="book-card__fallback" aria-hidden="true">
         <span class="book-card__fallback-char">{{ firstChar }}</span>
       </div>
-      <v-btn
-        class="book-card__delete"
-        icon="mdi-delete-outline"
-        size="x-small"
-        variant="flat"
+      <button
+        type="button"
+        class="micl-iconbutton-standard-xs book-card__delete"
         :aria-label="`删除《${book.name}》`"
         @click.stop="emit('delete', book)"
-      />
+      >
+        <i class="mdi mdi-delete-outline" aria-hidden="true" />
+      </button>
     </div>
     <div class="book-card__info">
       <span class="book-card__name text-truncate" :title="book.name">{{ book.name }}</span>
@@ -68,15 +71,12 @@ function onOpen() {
       <span v-if="book.durChapterTitle" class="book-card__chapter text-truncate">
         {{ book.durChapterTitle }}
       </span>
-      <div class="book-card__progress">
-        <v-progress-linear
-          :model-value="progressPercent"
-          height="3"
-          rounded
-          color="primary"
-          bg-color="outline-variant"
-        />
-      </div>
+      <progress
+        class="micl-linear-progress book-card__progress"
+        :value="progressPercent / 100"
+        max="1"
+        aria-label="阅读进度"
+      />
     </div>
   </div>
 </template>
@@ -88,7 +88,6 @@ function onOpen() {
   gap: 8px;
   cursor: pointer;
   outline-offset: 4px;
-  border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .book-card__cover {
@@ -119,7 +118,11 @@ function onOpen() {
   inset: 0;
   display: grid;
   place-items: center;
-  background: linear-gradient(160deg, var(--md-sys-color-primary-container) 0%, var(--md-sys-color-surface-container-high) 100%);
+  background: linear-gradient(
+    160deg,
+    var(--md-sys-color-primary-container) 0%,
+    var(--md-sys-color-surface-container-high) 100%
+  );
 }
 
 .book-card__fallback-char {
@@ -134,6 +137,7 @@ function onOpen() {
   top: 6px;
   right: 6px;
   opacity: 0;
+  background: var(--md-sys-color-surface-container);
   transition: opacity var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
 }
 
@@ -164,6 +168,7 @@ function onOpen() {
 
 .book-card__progress {
   margin-top: 4px;
+  width: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
+import AppDialog from '@/components/app/AppDialog.vue'
 import { openDebugSocket, type DebugHandle } from '@/api/debug'
 
 const props = defineProps<{
@@ -98,83 +99,56 @@ onBeforeUnmount(stop)
 </script>
 
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="680"
-    :scrim="true"
-    @update:model-value="emit('update:modelValue', $event)"
+  <AppDialog
+    :open="modelValue"
+    :title="title"
+    @update:open="emit('update:modelValue', $event)"
   >
-    <v-card rounded="xl" class="debug-sheet">
-      <v-card-title class="debug-sheet__title m3-title-medium">
-        {{ title }}
-        <span class="debug-sheet__tag m3-mono">{{ tag }}</span>
-      </v-card-title>
-      <v-card-text>
-        <div v-if="path === '/bookSourceDebug'" class="debug-sheet__key">
-          <v-text-field
-            v-model="key"
-            label="调试关键字"
-            :placeholder="keyHint || '搜索词或书籍地址'"
-            variant="outlined"
-            density="compact"
-            hide-details
-            :disabled="running"
-            @keydown.enter="toggle"
-          />
-        </div>
+    <div v-if="path === '/bookSourceDebug'" class="debug-sheet__key">
+      <div class="micl-textfield-filled">
+        <label for="debug-key">调试关键字</label>
+        <input
+          id="debug-key"
+          type="text"
+          v-model="key"
+          :placeholder="keyHint || '搜索词或书籍地址'"
+          :disabled="running"
+          @keydown.enter="toggle"
+        />
+      </div>
+    </div>
 
-        <div class="debug-sheet__actions">
-          <v-btn
-            variant="tonal"
-            :color="running ? 'error' : 'primary'"
-            :prepend-icon="running ? 'mdi-stop' : 'mdi-play'"
-            :loading="running && lines.length === 0"
-            class="m3-interactive"
-            @click="toggle"
-          >
-            {{ running ? '停止' : '开始调试' }}
-          </v-btn>
-          <v-chip v-if="finished" color="success" variant="tonal" size="small">
-            <v-icon start icon="mdi-check-circle" size="small" />
-            调试结束
-          </v-chip>
-        </div>
+    <div class="debug-sheet__actions">
+      <button
+        type="button"
+        class="micl-button-tonal-m"
+        @click="toggle"
+      >
+        <i :class="running ? 'mdi mdi-stop micl-button__icon' : 'mdi mdi-play micl-button__icon'" aria-hidden="true" />
+        {{ running ? '停止' : '开始调试' }}
+      </button>
+      <span v-if="finished" class="debug-sheet__done">
+        <i class="mdi mdi-check-circle" aria-hidden="true" />
+        调试结束
+      </span>
+    </div>
 
-        <p v-if="error" class="debug-sheet__error">{{ error }}</p>
+    <p v-if="error" class="debug-sheet__error">{{ error }}</p>
 
-        <div
-          ref="logText"
-          class="debug-sheet__log m3-mono"
-          :class="{ 'debug-sheet__log--empty': lines.length === 0 }"
-        >
-          <template v-if="lines.length > 0">
-            <p v-for="(l, i) in lines" :key="i">{{ l }}</p>
-          </template>
-          <span v-else>暂无日志…</span>
-        </div>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+    <div
+      ref="logText"
+      class="debug-sheet__log mono"
+      :class="{ 'debug-sheet__log--empty': lines.length === 0 }"
+    >
+      <template v-if="lines.length > 0">
+        <p v-for="(l, i) in lines" :key="i">{{ l }}</p>
+      </template>
+      <span v-else>暂无日志…</span>
+    </div>
+  </AppDialog>
 </template>
 
 <style scoped>
-.debug-sheet {
-  background: var(--md-sys-color-surface-container-high);
-}
-
-.debug-sheet__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  color: var(--md-sys-color-on-surface);
-}
-
-.debug-sheet__tag {
-  font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
-}
-
 .debug-sheet__key {
   margin-bottom: 12px;
 }
@@ -184,6 +158,14 @@ onBeforeUnmount(stop)
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.debug-sheet__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-primary);
 }
 
 .debug-sheet__error {

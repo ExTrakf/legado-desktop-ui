@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getHttpLog, getHttpLogs } from '@/api/httpLog'
+import AppDialog from '@/components/app/AppDialog.vue'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 import type { HttpLogRecord, HttpLogSummary } from '@/types'
 
 const logs = ref<HttpLogSummary[]>([])
@@ -33,9 +35,9 @@ async function load() {
 }
 
 function statusColor(code: number): string {
-  if (code >= 200 && code < 300) return 'success'
-  if (code >= 400) return 'error'
-  return 'on-surface-variant'
+  if (code >= 200 && code < 300) return 'var(--md-sys-color-primary)'
+  if (code >= 400) return 'var(--md-sys-color-error)'
+  return 'var(--md-sys-color-on-surface-variant)'
 }
 
 function timeText(ts: number): string {
@@ -58,211 +60,118 @@ async function openDetail(id: number) {
 </script>
 
 <template>
-  <div class="httplog-view">
-    <div class="httplog-view__head">
-      <div>
-        <h2 class="m3-headline-small httplog-view__title">HTTP 日志</h2>
-        <p class="httplog-view__subtitle">
+  <div class="view-wrap httplog-view">
+    <div class="view-head">
+      <div class="view-head__titles">
+        <h2 class="view-head__title">HTTP 日志</h2>
+        <p class="view-head__sub">
           最近请求记录 · 最多保留 50 条
-          <v-chip
-            size="small"
-            variant="tonal"
-            :color="recording ? 'primary' : 'default'"
-            class="httplog-view__recording"
-          >
-            <v-icon start :icon="recording ? 'mdi-radar' : 'mdi-radar-off'" size="small" />
+          <span class="httplog-view__recording" :style="recording ? 'color: var(--md-sys-color-primary)' : ''">
+            <i :class="recording ? 'mdi mdi-radar' : 'mdi mdi-radar-off'" aria-hidden="true" />
             {{ recording ? '记录中' : '未记录' }}
-          </v-chip>
+          </span>
         </p>
       </div>
-      <v-spacer />
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        class="m3-interactive"
-        @click="load"
-      >
-        刷新
-      </v-btn>
+      <div class="head-actions">
+        <button type="button" class="micl-button-text-m" :disabled="loading" @click="load">
+          <i class="mdi mdi-refresh micl-button__icon" aria-hidden="true" />
+          刷新
+        </button>
+      </div>
     </div>
 
-    <div v-if="loading && logs.length === 0" class="httplog-view__state">
-      <v-progress-circular indeterminate color="primary" size="36" />
+    <div v-if="loading && logs.length === 0" class="empty-state">
+      <progress class="micl-circular-progress" aria-label="正在加载日志" />
     </div>
 
-    <div v-else-if="error && logs.length === 0" class="httplog-view__state">
-      <v-icon icon="mdi-server-off-outline" size="40" color="error" />
-      <span>{{ error }}</span>
-      <v-btn variant="tonal" @click="load">重试</v-btn>
+    <div v-else-if="error && logs.length === 0" class="empty-state">
+      <i class="mdi mdi-server-off-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">{{ error }}</span>
+      <button type="button" class="micl-button-tonal-m" @click="load">重试</button>
     </div>
 
-    <div v-else-if="logs.length === 0" class="httplog-view__state">
-      <v-icon icon="mdi-file-document-outline" size="40" color="on-surface-variant" />
-      <span>暂无 HTTP 记录</span>
+    <div v-else-if="logs.length === 0" class="empty-state">
+      <i class="mdi mdi-file-document-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">暂无 HTTP 记录</span>
     </div>
 
-    <div v-else class="httplog-view__list">
-      <v-card
+    <div v-else class="card-list">
+      <div
         v-for="l in logs"
         :key="l.id"
-        class="httplog-view__item m3-interactive"
-        rounded="lg"
+        class="micl-card-filled card-row clickable"
         role="button"
         tabindex="0"
         @click="openDetail(l.id)"
         @keydown.enter="openDetail(l.id)"
       >
-        <v-card-item>
-          <template #prepend>
-            <v-chip size="small" variant="tonal" :color="statusColor(l.statusCode)" class="httplog-view__method m3-mono">
-              {{ l.method }}
-            </v-chip>
-          </template>
-          <v-card-title class="httplog-view__url m3-mono text-truncate">
-            {{ l.url }}
-          </v-card-title>
-          <v-card-subtitle class="httplog-view__meta m3-mono">
+        <span class="httplog-view__method mono" :style="{ color: statusColor(l.statusCode) }">{{ l.method }}</span>
+        <div class="card-row__main">
+          <div class="card-row__title mono text-truncate">{{ l.url }}</div>
+          <div class="card-row__sub mono">
             #{{ l.id }} · {{ timeText(l.time) }} · {{ l.duration }}ms
             <template v-if="l.error"> · {{ l.error }}</template>
-          </v-card-subtitle>
-          <template #append>
-            <v-chip size="small" variant="flat" :color="statusColor(l.statusCode)" class="m3-mono">
-              {{ l.statusCode }}
-            </v-chip>
-          </template>
-        </v-card-item>
-      </v-card>
+          </div>
+        </div>
+        <span class="httplog-view__code mono" :style="{ color: statusColor(l.statusCode) }">{{ l.statusCode }}</span>
+      </div>
     </div>
 
-    <v-dialog
-      :model-value="detailOpen"
-      max-width="720"
-      persistent
-      scrollable
-      @update:model-value="detailOpen = $event"
-    >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium httplog-view__detail-title">
-          HTTP #{{ detail?.id }}
-          <v-chip v-if="detail" size="small" variant="tonal" :color="statusColor(detail.statusCode)" class="m3-mono">
-            {{ detail.statusCode }}
-          </v-chip>
-        </v-card-title>
-        <v-divider />
-        <v-card-text>
-          <div v-if="detailLoading" class="httplog-view__detail-loading">
-            <v-progress-circular indeterminate color="primary" size="28" />
-          </div>
-          <template v-else-if="detail">
-            <p class="httplog-view__detail-line m3-mono">{{ detail.method }} {{ detail.url }}</p>
-            <p class="httplog-view__detail-meta m3-mono">
-              {{ timeText(detail.time) }} · {{ detail.duration }}ms
-            </p>
-            <template v-if="detail.requestHeaders || detail.requestBody">
-              <h4 class="httplog-view__detail-section m3-label-large">Request</h4>
-              <pre v-if="detail.requestHeaders" class="httplog-view__pre m3-mono">{{ detail.requestHeaders }}</pre>
-              <pre v-if="detail.requestBody" class="httplog-view__pre m3-mono">{{ detail.requestBody }}</pre>
-            </template>
-            <template v-if="detail.responseHeaders || detail.responseBody">
-              <h4 class="httplog-view__detail-section m3-label-large">Response</h4>
-              <pre v-if="detail.responseHeaders" class="httplog-view__pre m3-mono">{{ detail.responseHeaders }}</pre>
-              <pre v-if="detail.responseBody" class="httplog-view__pre m3-mono">{{ detail.responseBody }}</pre>
-            </template>
-            <template v-if="detail.error">
-              <h4 class="httplog-view__detail-section m3-label-large">Error</h4>
-              <pre class="httplog-view__pre httplog-view__pre--error m3-mono">{{ detail.error }}</pre>
-            </template>
-          </template>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="detailOpen = false">关闭</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog :open="detailOpen" title="HTTP 详情" @update:open="detailOpen = $event">
+      <div v-if="detailLoading" class="httplog-view__detail-loading">
+        <progress class="micl-circular-progress" aria-label="正在加载详情" />
+      </div>
+      <template v-else-if="detail">
+        <p class="httplog-view__detail-line mono">{{ detail.method }} {{ detail.url }}</p>
+        <p class="httplog-view__detail-meta mono">
+          {{ timeText(detail.time) }} · {{ detail.duration }}ms
+        </p>
+        <template v-if="detail.requestHeaders || detail.requestBody">
+          <h4 class="httplog-view__detail-section">Request</h4>
+          <pre v-if="detail.requestHeaders" class="httplog-view__pre mono">{{ detail.requestHeaders }}</pre>
+          <pre v-if="detail.requestBody" class="httplog-view__pre mono">{{ detail.requestBody }}</pre>
+        </template>
+        <template v-if="detail.responseHeaders || detail.responseBody">
+          <h4 class="httplog-view__detail-section">Response</h4>
+          <pre v-if="detail.responseHeaders" class="httplog-view__pre mono">{{ detail.responseHeaders }}</pre>
+          <pre v-if="detail.responseBody" class="httplog-view__pre mono">{{ detail.responseBody }}</pre>
+        </template>
+        <template v-if="detail.error">
+          <h4 class="httplog-view__detail-section">Error</h4>
+          <pre class="httplog-view__pre httplog-view__pre--error mono">{{ detail.error }}</pre>
+        </template>
+      </template>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="detailOpen = false">关闭</button>
+      </template>
+    </AppDialog>
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
-    >
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
 <style scoped>
 .httplog-view {
   max-width: 860px;
-  margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.httplog-view__head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.httplog-view__title {
-  color: var(--md-sys-color-on-surface);
-}
-
-.httplog-view__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
 }
 
 .httplog-view__recording {
-  margin-left: 6px;
-}
-
-.httplog-view__state {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 64px 0;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.httplog-view__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.httplog-view__item {
-  background: var(--md-sys-color-surface-container-low);
-  cursor: pointer;
-  outline-offset: 2px;
+  gap: 4px;
+  font-size: var(--md-sys-typescale-label-medium-size);
 }
 
 .httplog-view__method {
-  font-family: var(--md-ref-typeface-mono);
-  text-transform: none;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  flex: 0 0 auto;
 }
 
-.httplog-view__url {
-  font-size: var(--md-sys-typescale-body-medium-size);
-}
-
-.httplog-view__meta {
-  font-size: var(--md-sys-typescale-label-small-size);
-}
-
-.httplog-view__detail-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--md-sys-color-on-surface);
+.httplog-view__code {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  flex: 0 0 auto;
 }
 
 .httplog-view__detail-loading {

@@ -6,6 +6,8 @@ import { useThemeControl } from '@/composables/useTheme'
 import { useReaderStore } from '@/stores/reader'
 import { useAuthStore } from '@/stores/auth'
 import { cacheBookStop, getReadConfig, restoreDefaultData, saveReadConfig } from '@/api/system'
+import AppDialog from '@/components/app/AppDialog.vue'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 import type { ReaderSettings } from '@/types'
 
 const themeStore = useThemeStore()
@@ -43,6 +45,12 @@ const restoreOptions = [
 function openRestore() {
   restoreTypes.value = []
   restoreOpen.value = true
+}
+
+function toggleRestoreType(value: string, checked: boolean) {
+  restoreTypes.value = checked
+    ? [...new Set([...restoreTypes.value, value])]
+    : restoreTypes.value.filter((t) => t !== value)
 }
 
 async function confirmRestore() {
@@ -137,322 +145,323 @@ const surfaces = [
 </script>
 
 <template>
-  <div class="settings-view">
-    <h2 class="m3-headline-small settings-view__title">设置</h2>
+  <div class="view-wrap settings-view">
+    <h2 class="view-head__title">设置</h2>
 
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon
-            icon="mdi-laptop"
-            size="28"
-            :color="backendOnline ? 'primary' : 'error'"
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i
+          class="mdi mdi-laptop settings-card__icon"
+          :style="backendOnline ? 'color: var(--md-sys-color-primary)' : 'color: var(--md-sys-color-error)'"
+          aria-hidden="true"
+        />
+        <div class="settings-card__main">
+          <div class="settings-card__title">后端连接</div>
+          <div class="settings-card__sub mono">127.0.0.1:2323</div>
+        </div>
+        <span class="settings-card__chip" :class="backendOnline ? 'settings-card__chip--ok' : 'settings-card__chip--bad'">
+          {{ healthChecked ? (backendOnline ? '在线' : '离线') : '检测中…' }}
+        </span>
+      </div>
+      <p v-if="!backendOnline && healthChecked" class="settings-card__hint">
+        无法连接后端，请先启动 legado-desktop 后端服务。
+      </p>
+    </div>
+
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i class="mdi mdi-shield-lock-outline settings-card__icon" aria-hidden="true" />
+        <div class="settings-card__main">
+          <div class="settings-card__title">Web 书源令牌</div>
+          <div class="settings-card__sub">
+            书源写入/搜索等接口的访问令牌
+            <template v-if="healthChecked">（{{ tokenRequired ? '当前必填' : '当前无需令牌' }}）</template>
+          </div>
+        </div>
+      </div>
+      <div class="settings-card__body">
+        <div class="micl-textfield-filled settings-token__field">
+          <label for="token-input">令牌</label>
+          <input
+            id="token-input"
+            type="password"
+            v-model="tokenInput"
+            placeholder="留空表示清除"
+            autocomplete="off"
           />
-        </template>
-        <v-card-title>后端连接</v-card-title>
-        <v-card-subtitle class="settings-view__mono">
-          127.0.0.1:2323
-          <span v-if="healthChecked">
-            · {{ backendOnline ? '已连接' : '未连接' }}
-          </span>
-        </v-card-subtitle>
-        <template #append>
-          <v-chip
-            :color="backendOnline ? 'primary' : 'error'"
-            variant="tonal"
-            size="small"
-          >
-            {{ backendOnline ? '在线' : '离线' }}
-          </v-chip>
-        </template>
-      </v-card-item>
-      <template v-if="!backendOnline && healthChecked">
-        <v-divider />
-        <v-list-item
-          title="无法连接后端"
-          subtitle="请先启动 legado-desktop 后端服务"
-        />
-      </template>
-    </v-card>
-
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon icon="mdi-shield-lock-outline" size="28" color="primary" />
-        </template>
-        <v-card-title>Web 书源令牌</v-card-title>
-        <v-card-subtitle>
-          书源写入/搜索等接口的访问令牌
-          <template v-if="healthChecked">
-            （{{ tokenRequired ? '当前必填' : '当前无需令牌' }}）
-          </template>
-        </v-card-subtitle>
-      </v-card-item>
-      <v-divider />
-      <div class="settings-view__token">
-        <v-text-field
-          v-model="tokenInput"
-          label="令牌"
-          placeholder="留空表示清除"
-          :type="token ? 'password' : 'text'"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          autocomplete="off"
-        />
-        <div class="settings-view__token-actions">
-          <v-btn
-            variant="tonal"
-            prepend-icon="mdi-check"
-            :loading="applying"
-            :disabled="!tokenInput.trim()"
-            class="m3-interactive"
+        </div>
+        <div class="settings-token__actions">
+          <button
+            type="button"
+            class="micl-button-tonal-m"
+            :disabled="!tokenInput.trim() || applying"
             @click="applyToken"
           >
+            <i class="mdi mdi-check micl-button__icon" aria-hidden="true" />
             应用令牌
-          </v-btn>
-          <v-btn
-            variant="text"
-            prepend-icon="mdi-delete-outline"
+          </button>
+          <button
+            type="button"
+            class="micl-button-text-m"
             :disabled="!token"
             @click="clearToken"
           >
+            <i class="mdi mdi-delete-outline micl-button__icon" aria-hidden="true" />
             清除
-          </v-btn>
+          </button>
         </div>
-        <p class="settings-view__hint">
-          应用令牌会同时写入前端本地并下发到后端（POST /setJsSourceToken）。
-        </p>
+        <p class="field-hint">应用令牌会同时写入前端本地并下发到后端（POST /setJsSourceToken）。</p>
       </div>
-    </v-card>
+    </div>
 
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon icon="mdi-white-balance-sunny" size="28" color="primary" />
-        </template>
-        <v-card-title>外观</v-card-title>
-        <v-card-subtitle>应用整体主题</v-card-subtitle>
-        <template #append>
-          <v-switch
-            :model-value="name === 'dark'"
-            color="primary"
-            hide-details
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i class="mdi mdi-white-balance-sunny settings-card__icon" aria-hidden="true" />
+        <div class="settings-card__main">
+          <div class="settings-card__title">外观</div>
+          <div class="settings-card__sub">应用整体主题</div>
+        </div>
+        <div class="settings-card__trailing">
+          <input
+            type="checkbox"
+            class="micl-switch"
+            role="switch"
+            id="theme-switch"
+            :checked="name === 'dark'"
             :aria-label="`当前${name === 'dark' ? '深色' : '浅色'}主题`"
-            @update:model-value="setTheme($event ? 'dark' : 'light')"
+            @change="setTheme(($event.target as HTMLInputElement).checked ? 'dark' : 'light')"
           />
-        </template>
-      </v-card-item>
-    </v-card>
+        </div>
+      </div>
+    </div>
 
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon icon="mdi-format-color-fill" size="28" color="primary" />
-        </template>
-        <v-card-title>阅读默认</v-card-title>
-        <v-card-subtitle>新开书籍的阅读外观</v-card-subtitle>
-      </v-card-item>
-      <v-divider />
-      <v-list-item
-        v-for="s in surfaces"
-        :key="s.value"
-        :title="s.label"
-        :active="reader.settings.surface === s.value"
-      >
-        <template #append>
-          <v-radio-group
-            :model-value="reader.settings.surface"
-            hide-details
-            @update:model-value="reader.updateSettings({ surface: $event as never })"
-          >
-            <v-radio
-              :value="s.value"
-              color="primary"
-              :aria-label="s.label"
-            />
-          </v-radio-group>
-        </template>
-      </v-list-item>
-    </v-card>
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i class="mdi mdi-format-color-fill settings-card__icon" aria-hidden="true" />
+        <div class="settings-card__main">
+          <div class="settings-card__title">阅读默认</div>
+          <div class="settings-card__sub">新开书籍的阅读外观</div>
+        </div>
+      </div>
+      <div class="settings-card__body">
+        <div
+          v-for="s in surfaces"
+          :key="s.value"
+          class="settings-radio"
+          role="radio"
+          :aria-checked="reader.settings.surface === s.value"
+          tabindex="0"
+          @click="reader.updateSettings({ surface: s.value })"
+          @keydown.enter="reader.updateSettings({ surface: s.value })"
+          @keydown.space.prevent="reader.updateSettings({ surface: s.value })"
+        >
+          <input
+            type="radio"
+            class="micl-radio"
+            name="surface"
+            :id="`surface-${s.value}`"
+            :value="s.value"
+            :checked="reader.settings.surface === s.value"
+            :aria-label="s.label"
+            @change="reader.updateSettings({ surface: ($event.target as HTMLInputElement).value as never })"
+          />
+          <label :for="`surface-${s.value}`">{{ s.label }}</label>
+        </div>
+      </div>
+    </div>
 
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon icon="mdi-cloud-sync-outline" size="28" color="primary" />
-        </template>
-        <v-card-title>阅读配置同步</v-card-title>
-        <v-card-subtitle>把阅读外观（底色/字号/行距/字体）保存到后端，或从后端恢复</v-card-subtitle>
-      </v-card-item>
-      <v-divider />
-      <div class="settings-view__row">
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-cloud-upload-outline"
-          :loading="syncing && syncDirection === 'save'"
-          class="m3-interactive"
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i class="mdi mdi-cloud-sync-outline settings-card__icon" aria-hidden="true" />
+        <div class="settings-card__main">
+          <div class="settings-card__title">阅读配置同步</div>
+          <div class="settings-card__sub">把阅读外观保存到后端，或从后端恢复</div>
+        </div>
+      </div>
+      <div class="settings-card__body settings-card__actions">
+        <button
+          type="button"
+          class="micl-button-tonal-m"
+          :disabled="syncing && syncDirection === 'save'"
           @click="syncReaderConfig('save')"
         >
+          <i class="mdi mdi-cloud-upload-outline micl-button__icon" aria-hidden="true" />
           保存到后端
-        </v-btn>
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-cloud-download-outline"
-          :loading="syncing && syncDirection === 'load'"
-          class="m3-interactive"
+        </button>
+        <button
+          type="button"
+          class="micl-button-tonal-m"
+          :disabled="syncing && syncDirection === 'load'"
           @click="syncReaderConfig('load')"
         >
+          <i class="mdi mdi-cloud-download-outline micl-button__icon" aria-hidden="true" />
           从后端恢复
-        </v-btn>
+        </button>
       </div>
-    </v-card>
+    </div>
 
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon icon="mdi-database-arrow-down-outline" size="28" color="primary" />
-        </template>
-        <v-card-title>恢复默认数据</v-card-title>
-        <v-card-subtitle>重置 TXT 目录规则 / 词典 / 订阅源 / HTTP 朗读 为内置默认值</v-card-subtitle>
-      </v-card-item>
-      <v-divider />
-      <div class="settings-view__row">
-        <v-btn
-          variant="tonal"
-          color="error"
-          prepend-icon="mdi-restore"
-          class="m3-interactive"
-          @click="openRestore"
-        >
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i class="mdi mdi-database-arrow-down-outline settings-card__icon" aria-hidden="true" />
+        <div class="settings-card__main">
+          <div class="settings-card__title">恢复默认数据</div>
+          <div class="settings-card__sub">重置 TXT 目录规则 / 词典 / 订阅源 / HTTP 朗读 为内置默认值</div>
+        </div>
+      </div>
+      <div class="settings-card__body settings-card__actions">
+        <button type="button" class="micl-button-tonal-m" @click="openRestore">
+          <i class="mdi mdi-restore micl-button__icon" aria-hidden="true" />
           恢复默认
-        </v-btn>
+        </button>
       </div>
-    </v-card>
+    </div>
 
-    <v-card class="settings-view__card" rounded="lg">
-      <v-card-item>
-        <template #prepend>
-          <v-icon icon="mdi-download-multiple-outline" size="28" color="primary" />
-        </template>
-        <v-card-title>缓存管理</v-card-title>
-        <v-card-subtitle>阅读器中点「缓存」图标可缓存整本书；这里可停止进行中的缓存任务</v-card-subtitle>
-      </v-card-item>
-      <v-divider />
-      <div class="settings-view__row">
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-stop-circle-outline"
-          :loading="cacheStopping"
-          class="m3-interactive"
-          @click="stopCache"
-        >
+    <div class="micl-card-filled settings-card">
+      <div class="settings-card__row">
+        <i class="mdi mdi-download-multiple-outline settings-card__icon" aria-hidden="true" />
+        <div class="settings-card__main">
+          <div class="settings-card__title">缓存管理</div>
+          <div class="settings-card__sub">阅读器中点「缓存」图标可缓存整本书；这里可停止进行中的任务</div>
+        </div>
+      </div>
+      <div class="settings-card__body settings-card__actions">
+        <button type="button" class="micl-button-tonal-m" :disabled="cacheStopping" @click="stopCache">
+          <i class="mdi mdi-stop-circle-outline micl-button__icon" aria-hidden="true" />
           停止缓存
-        </v-btn>
+        </button>
       </div>
-    </v-card>
+    </div>
 
-    <v-dialog
-      :model-value="restoreOpen"
-      max-width="480"
-      persistent
-      @update:model-value="restoreOpen = $event"
+    <AppDialog
+      :open="restoreOpen"
+      title="恢复默认数据"
+      :supporting="'不勾选任何项 = 恢复全部；否则仅恢复勾选项。此操作会覆盖现有数据。'"
+      @update:open="restoreOpen = $event"
     >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">恢复默认数据</v-card-title>
-        <v-card-text>
-          <p class="settings-view__dialog-hint">
-            不勾选任何项 = 恢复全部；否则仅恢复勾选项。此操作会覆盖现有数据。
-          </p>
-          <v-checkbox
-            v-for="opt in restoreOptions"
-            :key="opt.value"
-            :model-value="restoreTypes.includes(opt.value)"
-            :label="opt.label"
-            color="primary"
-            hide-details
-            @update:model-value="
-              restoreTypes = $event
-                ? [...new Set([...restoreTypes, opt.value])]
-                : restoreTypes.filter((t) => t !== opt.value)
-            "
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="restoreOpen = false">取消</v-btn>
-          <v-btn
-            color="error"
-            variant="tonal"
-            :loading="restoring || restoringAll"
-            @click="confirmRestore"
-          >
-            恢复
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <div
+        v-for="opt in restoreOptions"
+        :key="opt.value"
+        class="settings-check"
+      >
+        <input
+          type="checkbox"
+          class="micl-checkbox"
+          :id="`restore-${opt.value}`"
+          :checked="restoreTypes.includes(opt.value)"
+          @change="toggleRestoreType(opt.value, !!($event.target as HTMLInputElement).checked)"
+        />
+        <label :for="`restore-${opt.value}`">{{ opt.label }}</label>
+      </div>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="restoreOpen = false">取消</button>
+        <button
+          type="button"
+          class="micl-button-text-m"
+          :disabled="restoring || restoringAll"
+          @click="confirmRestore"
+        >
+          恢复
+        </button>
+      </template>
+    </AppDialog>
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
-    >
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
 <style scoped>
 .settings-view {
   max-width: 720px;
-  margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
+}
+
+.settings-card {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.settings-view__title {
-  color: var(--md-sys-color-on-surface);
-}
-
-.settings-view__card {
-  background: var(--md-sys-color-surface-container-low);
-}
-
-.settings-view__mono {
-  font-family: var(--md-ref-typeface-mono);
-}
-
-.settings-view__token {
-  padding: 16px 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.settings-view__token-actions {
-  display: flex;
   gap: 8px;
 }
 
-.settings-view__hint {
-  margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+.settings-card__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-card__icon {
+  font-size: 28px;
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.settings-view__row {
-  padding: 16px 20px 20px;
+.settings-card__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-card__title {
+  font-family: var(--md-ref-typeface-display);
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+}
+
+.settings-card__sub {
+  margin-top: 2px;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.settings-card__hint {
+  margin: 0;
+  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--md-sys-color-error);
+}
+
+.settings-card__chip {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.settings-card__chip--ok {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.settings-card__chip--bad {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.settings-card__body {
   display: flex;
+  flex-direction: column;
   gap: 12px;
+  padding-top: 4px;
+}
+
+.settings-card__actions {
+  flex-direction: row;
   flex-wrap: wrap;
 }
 
-.settings-view__dialog-hint {
-  margin: 0 0 8px;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
+.settings-token__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
 }
 </style>

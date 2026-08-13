@@ -5,8 +5,8 @@ import { storeToRefs } from 'pinia'
 import { useReaderStore } from '@/stores/reader'
 import { useBookshelfStore } from '@/stores/bookshelf'
 import BookSpine from '@/components/reader/BookSpine.vue'
-import AppSheet from '@/components/app/AppSheet.vue'
-import AppIconButton from '@/components/app/AppIconButton.vue'
+import AppDialog from '@/components/app/AppDialog.vue'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 import { cacheBook, cacheBookRemove, cacheBookStop } from '@/api/system'
 import type { ReadingSurface } from '@/types'
 
@@ -92,35 +92,49 @@ async function runCache(action: 'start' | 'stop' | 'remove') {
     @mouseleave="reader.setChromeVisible(false)"
   >
     <transition name="chrome">
-      <header
-        v-if="chromeVisible"
-        class="reader-layout__top"
-      >
-        <AppIconButton
-          icon="mdi-arrow-left"
-          label="返回书架"
-          @click="router.push('/bookshelf')"
-        />
-        <div class="reader-layout__titles">
-          <span class="reader-layout__book">{{ book?.name }}</span>
-          <span class="reader-layout__chapter m3-mono">{{ reader.chapter?.title ?? '' }}</span>
+      <header v-if="chromeVisible" class="micl-appbar reader-layout__top">
+        <div class="micl-appbar__leading">
+          <button
+            type="button"
+            class="micl-iconbutton-standard-m"
+            aria-label="返回书架"
+            @click="router.push('/bookshelf')"
+          >
+            <i class="mdi mdi-arrow-left" aria-hidden="true" />
+          </button>
         </div>
-        <v-spacer />
-        <AppIconButton
-          icon="mdi-view-list"
-          label="章节目录"
-          @click="catalogOpen = true"
-        />
-        <AppIconButton
-          icon="mdi-download-multiple"
-          label="缓存本书"
-          @click="cacheOpen = true"
-        />
-        <AppIconButton
-          icon="mdi-format-text"
-          label="阅读设置"
-          @click="settingsOpen = true"
-        />
+        <div class="micl-appbar__headline">
+          <h1 class="reader-layout__book">{{ book?.name }}</h1>
+          <p class="micl-appbar__subtitle reader-layout__chapter mono">
+            {{ reader.chapter?.title ?? '' }}
+          </p>
+        </div>
+        <div class="micl-appbar__trailing">
+          <button
+            type="button"
+            class="micl-iconbutton-standard-m"
+            aria-label="章节目录"
+            @click="catalogOpen = true"
+          >
+            <i class="mdi mdi-view-list" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="micl-iconbutton-standard-m"
+            aria-label="缓存本书"
+            @click="cacheOpen = true"
+          >
+            <i class="mdi mdi-download-multiple" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="micl-iconbutton-standard-m"
+            aria-label="阅读设置"
+            @click="settingsOpen = true"
+          >
+            <i class="mdi mdi-format-text" aria-hidden="true" />
+          </button>
+        </div>
       </header>
     </transition>
 
@@ -137,192 +151,154 @@ async function runCache(action: 'start' | 'stop' | 'remove') {
     </main>
 
     <transition name="chrome">
-      <footer
-        v-if="chromeVisible"
-        class="reader-layout__bottom"
-      >
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-view-list"
+      <footer v-if="chromeVisible" class="reader-layout__bottom">
+        <button
+          type="button"
+          class="micl-button-text-m"
           @click="catalogOpen = true"
         >
+          <i class="mdi mdi-view-list micl-button__icon" aria-hidden="true" />
           目录
-        </v-btn>
-        <v-btn
-          variant="tonal"
-          :prepend-icon="currentSurface().icon"
-          @click="cycleSurface"
-        >
+        </button>
+        <button type="button" class="micl-button-text-m" @click="cycleSurface">
+          <i :class="`mdi ${currentSurface().icon} micl-button__icon`" aria-hidden="true" />
           {{ currentSurface().label }}
-        </v-btn>
-        <v-btn
-          variant="tonal"
-          prepend-icon="mdi-format-size"
-          @click="settingsOpen = true"
-        >
+        </button>
+        <button type="button" class="micl-button-text-m" @click="settingsOpen = true">
+          <i class="mdi mdi-format-size micl-button__icon" aria-hidden="true" />
           字号
-        </v-btn>
-        <v-spacer />
-        <span class="reader-layout__progress m3-mono">
-          {{ Math.round(progress * 100) }}%
-        </span>
+        </button>
+        <div class="spacer" />
+        <span class="reader-layout__progress mono">{{ Math.round(progress * 100) }}%</span>
       </footer>
     </transition>
 
-    <AppSheet v-model="catalogOpen">
-      <div class="reader-layout__sheet-head">
-        <span class="m3-title-medium">目录</span>
-        <AppIconButton icon="mdi-close" label="关闭" @click="catalogOpen = false" />
-      </div>
-      <v-list
-        class="reader-layout__catalog"
-        density="compact"
-      >
-        <v-list-item
+    <AppDialog :open="catalogOpen" title="目录" @update:open="catalogOpen = $event">
+      <ul class="micl-list reader-layout__catalog">
+        <li
           v-for="(c, i) in chapters"
           :key="c.url"
-          :active="i === chapterIndex"
-          :title="c.title"
-          class="m3-interactive"
-          rounded="lg"
+          class="micl-list-item-two clickable"
+          :class="{ 'reader-layout__catalog-active': i === chapterIndex }"
+          tabindex="0"
           @click="reader.jumpTo(i); catalogOpen = false"
+          @keydown.enter="reader.jumpTo(i); catalogOpen = false"
         >
-          <template #prepend>
-            <span class="m3-mono reader-layout__catalog-no">
-              {{ String(i + 1).padStart(2, '0') }}
+          <span class="micl-list-item__text">
+            <span class="micl-list-item__headline">
+              <span class="mono reader-layout__catalog-no">{{ String(i + 1).padStart(2, '0') }}</span>
+              {{ c.title }}
             </span>
-          </template>
-          <template #append>
-            <v-icon v-if="i === chapterIndex" icon="mdi-book-open-page-variant-outline" size="small" />
-          </template>
-        </v-list-item>
-      </v-list>
-    </AppSheet>
+          </span>
+        </li>
+      </ul>
+    </AppDialog>
 
-    <v-dialog
-      :model-value="cacheOpen"
-      max-width="420"
-      persistent
-      @update:model-value="cacheOpen = $event"
-    >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">缓存本书</v-card-title>
-        <v-card-text class="reader-layout__cache-text">
-          将《{{ book?.name }}》的全部章节正文缓存到本地，离线也能阅读。
-        </v-card-text>
-        <v-card-actions class="reader-layout__cache-actions">
-          <v-spacer />
-          <v-btn variant="text" @click="cacheOpen = false">取消</v-btn>
-          <v-btn
-            variant="tonal"
-            prepend-icon="mdi-close-circle-outline"
-            :loading="cacheBusy"
-            @click="runCache('remove')"
-          >
-            移除缓存
-          </v-btn>
-          <v-btn
-            variant="tonal"
-            prepend-icon="mdi-stop-circle-outline"
-            :loading="cacheBusy"
-            @click="runCache('stop')"
-          >
-            停止
-          </v-btn>
-          <v-btn
-            color="primary"
-            variant="tonal"
-            prepend-icon="mdi-download-multiple"
-            :loading="cacheBusy"
-            @click="runCache('start')"
-          >
-            开始缓存
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <AppSheet v-model="settingsOpen">
-      <div class="reader-layout__sheet-head">
-        <span class="m3-title-medium">阅读设置</span>
-        <AppIconButton icon="mdi-close" label="关闭" @click="settingsOpen = false" />
-      </div>
+    <AppDialog :open="settingsOpen" title="阅读设置" @update:open="settingsOpen = $event">
       <div class="reader-layout__setting">
-        <span class="m3-label-large">底色</span>
+        <span class="reader-layout__setting-label">底色</span>
         <div class="reader-layout__segmented" role="radiogroup" aria-label="阅读底色">
-          <v-btn
+          <button
             v-for="s in surfaces"
             :key="s.value"
-            variant="tonal"
-            :color="settings.surface === s.value ? 'primary' : undefined"
-            :prepend-icon="s.icon"
-            size="small"
-            class="m3-interactive"
+            type="button"
+            class="micl-button--toggle micl-chip-filter"
+            :aria-pressed="settings.surface === s.value ? 'true' : 'false'"
             @click="reader.updateSettings({ surface: s.value })"
           >
+            <i :class="`mdi ${s.icon}`" aria-hidden="true" />
             {{ s.label }}
-          </v-btn>
+          </button>
         </div>
       </div>
       <div class="reader-layout__setting">
-        <span class="m3-label-large">字号</span>
-        <v-slider
-          :model-value="settings.fontSizeRem"
-          :min="0.875"
-          :max="1.5"
-          :step="0.0625"
-          show-ticks="always"
-          thumb-label="always"
-          color="primary"
-          @update:model-value="reader.updateSettings({ fontSizeRem: $event as number })"
+        <span class="reader-layout__setting-label">字号</span>
+        <input
+          type="range"
+          class="micl-slider-m reader-layout__slider"
+          min="0.875"
+          max="1.5"
+          step="0.0625"
+          :value="settings.fontSizeRem"
+          aria-label="字号"
+          @input="reader.updateSettings({ fontSizeRem: Number(($event.target as HTMLInputElement).value) })"
         />
+        <span class="reader-layout__setting-value mono">{{ settings.fontSizeRem.toFixed(3) }}rem</span>
       </div>
       <div class="reader-layout__setting">
-        <span class="m3-label-large">行距</span>
-        <v-slider
-          :model-value="settings.lineHeight"
-          :min="1.4"
-          :max="2.4"
-          :step="0.1"
-          show-ticks="always"
-          thumb-label="always"
-          color="primary"
-          @update:model-value="reader.updateSettings({ lineHeight: $event as number })"
+        <span class="reader-layout__setting-label">行距</span>
+        <input
+          type="range"
+          class="micl-slider-m reader-layout__slider"
+          min="1.4"
+          max="2.4"
+          step="0.1"
+          :value="settings.lineHeight"
+          aria-label="行距"
+          @input="reader.updateSettings({ lineHeight: Number(($event.target as HTMLInputElement).value) })"
         />
+        <span class="reader-layout__setting-value mono">{{ settings.lineHeight.toFixed(1) }}</span>
       </div>
       <div class="reader-layout__setting">
-        <span class="m3-label-large">字体</span>
+        <span class="reader-layout__setting-label">字体</span>
         <div class="reader-layout__segmented" role="radiogroup" aria-label="阅读字体">
-          <v-btn
-            variant="tonal"
-            :color="settings.font === 'serif' ? 'primary' : undefined"
-            size="small"
-            class="m3-interactive"
+          <button
+            type="button"
+            class="micl-button--toggle micl-chip-filter"
+            :aria-pressed="settings.font === 'serif' ? 'true' : 'false'"
             @click="reader.updateSettings({ font: 'serif' })"
           >
             衬线
-          </v-btn>
-          <v-btn
-            variant="tonal"
-            :color="settings.font === 'sans' ? 'primary' : undefined"
-            size="small"
-            class="m3-interactive"
+          </button>
+          <button
+            type="button"
+            class="micl-button--toggle micl-chip-filter"
+            :aria-pressed="settings.font === 'sans' ? 'true' : 'false'"
             @click="reader.updateSettings({ font: 'sans' })"
           >
             黑体
-          </v-btn>
+          </button>
         </div>
       </div>
-    </AppSheet>
+    </AppDialog>
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
+    <AppDialog
+      :open="cacheOpen"
+      title="缓存本书"
+      :supporting="`将《${book?.name ?? ''}》的全部章节正文缓存到本地，离线也能阅读。`"
+      @update:open="cacheOpen = $event"
     >
+      <template #actions>
+        <button
+          type="button"
+          class="micl-button-text-m"
+          :disabled="cacheBusy"
+          @click="runCache('remove')"
+        >
+          移除缓存
+        </button>
+        <button
+          type="button"
+          class="micl-button-text-m"
+          :disabled="cacheBusy"
+          @click="runCache('stop')"
+        >
+          停止
+        </button>
+        <button
+          type="button"
+          class="micl-button-filled-m"
+          :disabled="cacheBusy"
+          @click="runCache('start')"
+        >
+          开始缓存
+        </button>
+      </template>
+    </AppDialog>
+
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
@@ -348,35 +324,22 @@ async function runCache(action: 'start' | 'stop' | 'remove') {
   left: 48px;
   right: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
   background: var(--md-sys-color-surface-container);
   border-bottom: 1px solid var(--md-sys-color-outline-variant);
 }
 
-.reader-layout__titles {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  margin-left: 4px;
-}
-
 .reader-layout__book {
   font-family: var(--md-ref-typeface-display);
-  font-weight: 600;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--md-sys-typescale-title-medium-size) !important;
   line-height: 1.3;
-  color: var(--md-sys-color-on-surface);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 60vw;
 }
 
 .reader-layout__chapter {
-  font-size: var(--md-sys-typescale-label-small-size);
-  color: var(--md-sys-color-on-surface-variant);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -392,7 +355,7 @@ async function runCache(action: 'start' | 'stop' | 'remove') {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--md-sys-color-surface-container);
   border-top: 1px solid var(--md-sys-color-outline-variant);
 }
@@ -401,47 +364,50 @@ async function runCache(action: 'start' | 'stop' | 'remove') {
   color: var(--md-sys-color-on-surface-variant);
 }
 
-.reader-layout__sheet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 16px 8px;
-  color: var(--md-sys-color-on-surface);
-}
-
 .reader-layout__catalog {
   max-height: 60vh;
   overflow-y: auto;
 }
 
+.reader-layout__catalog-active {
+  background: var(--md-sys-color-secondary-container);
+}
+
 .reader-layout__catalog-no {
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-small-size);
-  width: 28px;
+  width: 32px;
+  display: inline-block;
   text-align: right;
+  margin-right: 8px;
 }
 
 .reader-layout__setting {
-  padding: 12px 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 16px;
+}
+
+.reader-layout__setting-label {
+  font-family: var(--md-ref-typeface-display);
+  font-weight: 600;
   color: var(--md-sys-color-on-surface);
-}
-
-.reader-layout__cache-text {
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.reader-layout__cache-actions {
-  padding-bottom: 16px;
-  gap: 4px;
-  flex-wrap: wrap;
 }
 
 .reader-layout__segmented {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.reader-layout__slider {
+  width: 100%;
+}
+
+.reader-layout__setting-value {
+  color: var(--md-sys-color-on-surface-variant);
+  text-align: right;
 }
 
 .chrome-enter-active,
@@ -453,13 +419,6 @@ async function runCache(action: 'start' | 'stop' | 'remove') {
 .chrome-enter-from,
 .chrome-leave-to {
   opacity: 0;
-}
-
-.chrome-enter-from {
-  transform: translateY(-16px);
-}
-
-.chrome-leave-to {
   transform: translateY(-16px);
 }
 

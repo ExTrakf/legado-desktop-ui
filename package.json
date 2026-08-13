@@ -16,10 +16,10 @@
   "dependencies": {
     "@mdi/font": "7.4.47",
     "@tauri-apps/api": "^2.11.1",
+    "material-inspired-component-library": "^9.0.2",
     "pinia": "4.0.2",
     "vue": "3.5.41",
-    "vue-router": "5.2.0",
-    "vuetify": "4.1.8"
+    "vue-router": "5.2.0"
   },
   "devDependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",

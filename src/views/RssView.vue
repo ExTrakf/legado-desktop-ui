@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRssStore } from '@/stores/rss'
 import { saveRssSource } from '@/api/rss'
+import AppDialog from '@/components/app/AppDialog.vue'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 import DebugSheet from '@/components/app/DebugSheet.vue'
 import type { RssSource } from '@/types'
 
@@ -93,163 +95,131 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="rss-view">
-    <div class="rss-view__head">
-      <div>
-        <h2 class="m3-headline-small rss-view__title">订阅源管理</h2>
-        <p class="rss-view__subtitle">
-          已启用 <span class="m3-mono">{{ enabledCount }}</span> / {{ sources.length }} 个订阅源
+  <div class="view-wrap rss-view">
+    <div class="view-head">
+      <div class="view-head__titles">
+        <h2 class="view-head__title">订阅源管理</h2>
+        <p class="view-head__sub">
+          已启用 <span class="mono">{{ enabledCount }}</span> / {{ sources.length }} 个订阅源
         </p>
       </div>
-      <v-spacer />
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        class="m3-interactive"
-        @click="store.load(true)"
-      >
-        刷新
-      </v-btn>
-      <v-btn
-        variant="flat"
-        color="primary"
-        prepend-icon="mdi-plus"
-        class="m3-interactive"
-        @click="openAdd"
-      >
-        新增订阅源
-      </v-btn>
+      <div class="head-actions">
+        <button type="button" class="micl-button-text-m" :disabled="loading" @click="store.load(true)">
+          <i class="mdi mdi-refresh micl-button__icon" aria-hidden="true" />
+          刷新
+        </button>
+        <button type="button" class="micl-button-filled-m" @click="openAdd">
+          <i class="mdi mdi-plus micl-button__icon" aria-hidden="true" />
+          新增订阅源
+        </button>
+      </div>
     </div>
 
-    <v-text-field
-      v-model="keyword"
-      prepend-inner-icon="mdi-magnify"
-      placeholder="筛选订阅源"
-      variant="outlined"
-      density="compact"
-      hide-details
-      class="rss-view__search"
-    />
-
-    <div v-if="loading && sources.length === 0" class="rss-view__state">
-      <v-progress-circular indeterminate color="primary" size="36" />
+    <div class="micl-textfield-outlined filter-field">
+      <label for="rss-filter">筛选订阅源</label>
+      <input id="rss-filter" type="search" v-model="keyword" placeholder="名称 / 分组 / 地址" />
     </div>
 
-    <div v-else-if="error && sources.length === 0" class="rss-view__state">
-      <v-icon icon="mdi-server-off-outline" size="40" color="error" />
-      <span>{{ error }}</span>
-      <v-btn variant="tonal" @click="store.load(true)">重试</v-btn>
+    <div v-if="loading && sources.length === 0" class="empty-state">
+      <progress class="micl-circular-progress" aria-label="正在加载订阅源" />
     </div>
 
-    <div v-else-if="sources.length === 0" class="rss-view__state">
-      <v-icon icon="mdi-rss" size="40" color="on-surface-variant" />
-      <span>还没有订阅源</span>
+    <div v-else-if="error && sources.length === 0" class="empty-state">
+      <i class="mdi mdi-server-off-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">{{ error }}</span>
+      <button type="button" class="micl-button-tonal-m" @click="store.load(true)">重试</button>
     </div>
 
-    <div v-else class="rss-view__list">
-      <v-card
+    <div v-else-if="sources.length === 0" class="empty-state">
+      <i class="mdi mdi-rss empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">还没有订阅源</span>
+    </div>
+
+    <div v-else class="card-list">
+      <div
         v-for="s in filtered()"
         :key="s.sourceUrl"
-        class="rss-view__item"
-        rounded="lg"
+        class="micl-card-filled card-row"
       >
-        <v-card-item>
-          <template #prepend>
-            <v-icon
-              :icon="s.enabled ? 'mdi-rss' : 'mdi-rss-off'"
-              :color="s.enabled ? 'primary' : 'on-surface-variant'"
-              size="28"
-            />
-          </template>
-          <v-card-title class="text-truncate">{{ s.sourceName }}</v-card-title>
-          <v-card-subtitle class="text-truncate m3-mono">
+        <i
+          :class="s.enabled ? 'mdi mdi-rss' : 'mdi mdi-rss-off'"
+          :style="s.enabled ? 'color: var(--md-sys-color-primary)' : ''"
+          style="font-size: 28px"
+          aria-hidden="true"
+        />
+        <div class="card-row__main">
+          <div class="card-row__title text-truncate">
+            {{ s.sourceName }}
+          </div>
+          <div class="card-row__sub mono text-truncate">
             {{ s.sourceUrl }}
             <template v-if="s.sourceGroup"> · {{ s.sourceGroup }}</template>
-          </v-card-subtitle>
-          <template #append>
-            <v-btn
-              icon="mdi-bug-outline"
-              variant="text"
-              :aria-label="`调试 ${s.sourceName}`"
-              @click="openDebug(s)"
-            />
-            <v-btn
-              icon="mdi-delete-outline"
-              variant="text"
-              :aria-label="`删除 ${s.sourceName}`"
-              @click="confirming = s"
-            />
-            <v-switch
-              :model-value="s.enabled"
-              color="primary"
-              hide-details
-              :aria-label="`${s.enabled ? '停用' : '启用'} ${s.sourceName}`"
-              @update:model-value="onToggle(s, !!$event)"
-            />
-          </template>
-        </v-card-item>
-      </v-card>
+          </div>
+        </div>
+        <div class="card-row__actions">
+          <button
+            type="button"
+            class="micl-iconbutton-standard-s"
+            :aria-label="`调试 ${s.sourceName}`"
+            @click="openDebug(s)"
+          >
+            <i class="mdi mdi-bug-outline" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="micl-iconbutton-standard-s"
+            :aria-label="`删除 ${s.sourceName}`"
+            @click="confirming = s"
+          >
+            <i class="mdi mdi-delete-outline" aria-hidden="true" />
+          </button>
+          <input
+            type="checkbox"
+            class="micl-switch"
+            role="switch"
+            :id="`rss-sw-${s.sourceUrl}`"
+            :checked="s.enabled"
+            :aria-label="`${s.enabled ? '停用' : '启用'} ${s.sourceName}`"
+            @change="onToggle(s, !!($event.target as HTMLInputElement).checked)"
+          />
+        </div>
+      </div>
     </div>
 
-    <v-dialog
-      :model-value="addOpen"
-      max-width="480"
-      persistent
-      @update:model-value="addOpen = $event"
-    >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">新增订阅源</v-card-title>
-        <v-card-text class="rss-view__add">
-          <v-text-field
-            v-model="addForm.sourceName"
-            label="名称"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-          />
-          <v-text-field
-            v-model="addForm.sourceUrl"
-            label="地址"
-            placeholder="https://example.com/feed.xml"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-          />
-          <v-text-field
-            v-model="addForm.sourceGroup"
-            label="分组（可选）"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="addOpen = false">取消</v-btn>
-          <v-btn color="primary" variant="tonal" :loading="adding" @click="confirmAdd">
-            保存
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AppDialog :open="addOpen" title="新增订阅源" @update:open="addOpen = $event">
+      <div class="form-stack">
+        <div class="micl-textfield-filled">
+          <label for="rss-name">名称</label>
+          <input id="rss-name" type="text" v-model="addForm.sourceName" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="rss-url">地址</label>
+          <input id="rss-url" type="url" class="mono" v-model="addForm.sourceUrl" placeholder="https://example.com/feed.xml" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="rss-group">分组（可选）</label>
+          <input id="rss-group" type="text" v-model="addForm.sourceGroup" />
+        </div>
+      </div>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="addOpen = false">取消</button>
+        <button type="button" class="micl-button-filled-m" :disabled="adding" @click="confirmAdd">
+          保存
+        </button>
+      </template>
+    </AppDialog>
 
-    <v-dialog
-      :model-value="!!confirming"
-      max-width="420"
-      persistent
-      @update:model-value="confirming = $event ? confirming : null"
+    <AppDialog
+      :open="!!confirming"
+      :title="'删除订阅源'"
+      :supporting="`确定删除订阅源「${confirming?.sourceName ?? ''}」吗？`"
+      @update:open="confirming = $event ? confirming : null"
     >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">删除订阅源</v-card-title>
-        <v-card-text>确定删除订阅源「{{ confirming?.sourceName }}」吗？</v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="confirming = null">取消</v-btn>
-          <v-btn color="error" variant="tonal" @click="confirmDelete">删除</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="confirming = null">取消</button>
+        <button type="button" class="micl-button-text-m" @click="confirmDelete">删除</button>
+      </template>
+    </AppDialog>
 
     <DebugSheet
       v-model="debugOpen"
@@ -258,70 +228,14 @@ async function confirmDelete() {
       :tag="debugTag"
     />
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
-    >
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
 <style scoped>
-.rss-view {
-  max-width: 820px;
-  margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.rss-view__head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.rss-view__title {
-  color: var(--md-sys-color-on-surface);
-}
-
-.rss-view__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.rss-view__search {
-  max-width: 360px;
-}
-
-.rss-view__state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 64px 0;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.rss-view__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rss-view__item {
-  background: var(--md-sys-color-surface-container-low);
-}
-
-.rss-view__add {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.filter-field {
+  margin: 0;
 }
 </style>

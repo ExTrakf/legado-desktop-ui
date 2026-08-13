@@ -1,15 +1,12 @@
-import { useTheme } from 'vuetify'
 import { useThemeStore } from '@/stores/theme'
 
 export type AppTheme = 'light' | 'dark'
 
 /**
  * 主题控制：store 是唯一数据源。
- * 任何切换同时更新 Vuetify 组件主题、<html data-theme>（驱动 CSS 层 M3 token）
- * 与持久化 store，避免三处状态漂移。
+ * 切换时更新 <html data-theme>（驱动 M3 token / MICL 组件配色）并持久化。
  */
 export function useThemeControl() {
-  const theme = useTheme()
   const store = useThemeStore()
 
   function applyDataTheme(name: AppTheme) {
@@ -19,7 +16,6 @@ export function useThemeControl() {
 
   function setTheme(name: AppTheme) {
     store.set(name)
-    theme.global.name.value = name
     applyDataTheme(name)
   }
 
@@ -29,10 +25,8 @@ export function useThemeControl() {
 
   /** 应用 store 中已持久化的主题（App 挂载时调用一次） */
   function hydrate() {
-    const name = store.name
-    theme.global.name.value = name
-    applyDataTheme(name)
+    applyDataTheme(store.name)
   }
 
-  return { theme, setTheme, toggle, hydrate }
+  return { setTheme, toggle, hydrate }
 }

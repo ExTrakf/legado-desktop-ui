@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { clearCookies, getCookies, setCookie, type CookiePair } from '@/api/cookies'
+import AppDialog from '@/components/app/AppDialog.vue'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 
 const cookies = ref<CookiePair[]>([])
 const loading = ref(false)
@@ -89,209 +91,110 @@ async function clearAll() {
 </script>
 
 <template>
-  <div class="cookie-view">
-    <div class="cookie-view__head">
-      <div>
-        <h2 class="m3-headline-small cookie-view__title">Cookie 管理</h2>
-        <p class="cookie-view__subtitle">
-          共 <span class="m3-mono">{{ cookies.length }}</span> 条持久化 Cookie
+  <div class="view-wrap cookie-view">
+    <div class="view-head">
+      <div class="view-head__titles">
+        <h2 class="view-head__title">Cookie 管理</h2>
+        <p class="view-head__sub">
+          共 <span class="mono">{{ cookies.length }}</span> 条持久化 Cookie
         </p>
       </div>
-      <v-spacer />
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-refresh"
-        :loading="loading"
-        class="m3-interactive"
-        @click="load"
-      >
-        刷新
-      </v-btn>
-      <v-btn
-        variant="flat"
-        color="primary"
-        prepend-icon="mdi-plus"
-        class="m3-interactive"
-        @click="openNew"
-      >
-        新增 / 更新
-      </v-btn>
-      <v-btn
-        variant="tonal"
-        color="error"
-        prepend-icon="mdi-cookie-off-outline"
-        :loading="clearingAll"
-        :disabled="cookies.length === 0"
-        @click="clearAll"
-      >
-        清空全部
-      </v-btn>
+      <div class="head-actions">
+        <button type="button" class="micl-button-text-m" :disabled="loading" @click="load">
+          <i class="mdi mdi-refresh micl-button__icon" aria-hidden="true" />
+          刷新
+        </button>
+        <button type="button" class="micl-button-filled-m" @click="openNew">
+          <i class="mdi mdi-plus micl-button__icon" aria-hidden="true" />
+          新增 / 更新
+        </button>
+        <button
+          type="button"
+          class="micl-button-text-m"
+          :disabled="cookies.length === 0 || clearingAll"
+          @click="clearAll"
+        >
+          <i class="mdi mdi-cookie-off-outline micl-button__icon" aria-hidden="true" />
+          清空全部
+        </button>
+      </div>
     </div>
 
-    <div v-if="loading && cookies.length === 0" class="cookie-view__state">
-      <v-progress-circular indeterminate color="primary" size="36" />
+    <div v-if="loading && cookies.length === 0" class="empty-state">
+      <progress class="micl-circular-progress" aria-label="正在加载 Cookie" />
     </div>
 
-    <div v-else-if="error && cookies.length === 0" class="cookie-view__state">
-      <v-icon icon="mdi-server-off-outline" size="40" color="error" />
-      <span>{{ error }}</span>
-      <v-btn variant="tonal" @click="load">重试</v-btn>
+    <div v-else-if="error && cookies.length === 0" class="empty-state">
+      <i class="mdi mdi-server-off-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">{{ error }}</span>
+      <button type="button" class="micl-button-tonal-m" @click="load">重试</button>
     </div>
 
-    <div v-else-if="cookies.length === 0" class="cookie-view__state">
-      <v-icon icon="mdi-cookie-outline" size="40" color="on-surface-variant" />
-      <span>还没有 Cookie</span>
+    <div v-else-if="cookies.length === 0" class="empty-state">
+      <i class="mdi mdi-cookie-outline empty-state__icon" aria-hidden="true" />
+      <span class="empty-state__hint">还没有 Cookie</span>
     </div>
 
-    <div v-else class="cookie-view__list">
-      <v-card
-        v-for="(c, i) in cookies"
-        :key="c.url"
-        class="cookie-view__item"
-        rounded="lg"
-      >
-        <v-card-item>
-          <template #prepend>
-            <v-icon icon="mdi-cookie" color="primary" size="28" />
-          </template>
-          <v-card-title class="cookie-view__url m3-mono text-truncate">{{ c.url }}</v-card-title>
-          <v-card-subtitle class="cookie-view__cookie m3-mono text-truncate">
-            {{ c.cookie }}
-          </v-card-subtitle>
-          <template #append>
-            <v-btn
-              icon="mdi-pencil-outline"
-              variant="text"
-              :aria-label="`编辑 ${c.url}`"
-              @click="openEdit(i)"
-            />
-            <v-btn
-              icon="mdi-delete-outline"
-              variant="text"
-              :aria-label="`清除 ${c.url}`"
-              @click="removeOne(c)"
-            />
-          </template>
-        </v-card-item>
-      </v-card>
+    <div v-else class="card-list">
+      <div v-for="(c, i) in cookies" :key="c.url" class="micl-card-filled card-row">
+        <i class="mdi mdi-cookie" style="font-size: 28px; color: var(--md-sys-color-primary)" aria-hidden="true" />
+        <div class="card-row__main">
+          <div class="card-row__title mono text-truncate">{{ c.url }}</div>
+          <div class="card-row__sub mono text-truncate">{{ c.cookie }}</div>
+        </div>
+        <div class="card-row__actions">
+          <button
+            type="button"
+            class="micl-iconbutton-standard-s"
+            :aria-label="`编辑 ${c.url}`"
+            @click="openEdit(i)"
+          >
+            <i class="mdi mdi-pencil-outline" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="micl-iconbutton-standard-s"
+            :aria-label="`清除 ${c.url}`"
+            @click="removeOne(c)"
+          >
+            <i class="mdi mdi-delete-outline" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
     </div>
 
-    <v-dialog
-      :model-value="editOpen"
-      max-width="560"
-      persistent
-      @update:model-value="editOpen = $event"
+    <AppDialog
+      :open="editOpen"
+      :title="editingIndex >= 0 ? '更新 Cookie' : '新增 Cookie'"
+      @update:open="editOpen = $event"
     >
-      <v-card rounded="xl">
-        <v-card-title class="m3-title-medium">
-          {{ editingIndex >= 0 ? '更新 Cookie' : '新增 Cookie' }}
-        </v-card-title>
-        <v-card-text class="cookie-view__form">
-          <v-text-field
-            v-model="editUrl"
-            label="站点地址"
-            placeholder="https://example.com"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            class="m3-mono"
-          />
-          <v-textarea
-            v-model="editCookie"
-            label="Cookie 串"
-            placeholder="k=v; k2=v2"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            rows="3"
-            class="m3-mono"
-          />
-          <p class="cookie-view__hint">Cookie 需为完整的 "k=v; k2=v2" 格式。</p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="editOpen = false">取消</v-btn>
-          <v-btn color="primary" variant="tonal" :loading="saving" @click="confirmSave">
-            保存
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <div class="form-stack">
+        <div class="micl-textfield-filled">
+          <label for="cookie-url">站点地址</label>
+          <input id="cookie-url" type="url" class="mono" v-model="editUrl" placeholder="https://example.com" />
+        </div>
+        <div class="micl-textfield-filled">
+          <label for="cookie-value">Cookie 串</label>
+          <textarea id="cookie-value" class="mono" rows="3" v-model="editCookie" placeholder="k=v; k2=v2" />
+        </div>
+        <p class="field-hint">Cookie 需为完整的 "k=v; k2=v2" 格式。</p>
+      </div>
+      <template #actions>
+        <button type="button" class="micl-button-text-m" @click="editOpen = false">取消</button>
+        <button type="button" class="micl-button-filled-m" :disabled="saving" @click="confirmSave">
+          保存
+        </button>
+      </template>
+    </AppDialog>
 
-    <v-snackbar
-      :model-value="!!snackbar"
-      :timeout="2500"
-      location="bottom"
-      @update:model-value="snackbar = $event ? snackbar : ''"
-    >
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
       {{ snackbar }}
-    </v-snackbar>
+    </AppSnackbar>
   </div>
 </template>
 
 <style scoped>
 .cookie-view {
   max-width: 820px;
-  margin: 0 auto;
-  padding: 24px clamp(16px, 4vw, 32px) 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.cookie-view__head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cookie-view__title {
-  color: var(--md-sys-color-on-surface);
-}
-
-.cookie-view__subtitle {
-  margin: 4px 0 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.cookie-view__state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 64px 0;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.cookie-view__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.cookie-view__item {
-  background: var(--md-sys-color-surface-container-low);
-}
-
-.cookie-view__url {
-  font-size: var(--md-sys-typescale-body-medium-size);
-}
-
-.cookie-view__cookie {
-  font-size: var(--md-sys-typescale-label-medium-size);
-}
-
-.cookie-view__form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.cookie-view__hint {
-  margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-surface-variant);
 }
 </style>

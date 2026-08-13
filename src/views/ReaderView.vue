@@ -84,15 +84,16 @@ onBeforeUnmount(() => {
       </header>
 
       <div v-if="loading" class="reader-view__loading">
-        <v-progress-linear indeterminate color="primary" height="2" />
+        <progress class="micl-linear-progress" aria-label="正在加载正文" />
       </div>
 
       <div v-else-if="error" class="reader-view__error">
-        <v-icon icon="mdi-alert-circle-outline" size="40" color="error" />
+        <i class="mdi mdi-alert-circle-outline reader-view__error-icon" aria-hidden="true" />
         <p class="reader-view__error-msg">{{ error }}</p>
-        <v-btn variant="tonal" prepend-icon="mdi-refresh" @click="reader.loadContent()">
+        <button type="button" class="micl-button-tonal-m" @click="reader.loadContent()">
+          <i class="mdi mdi-refresh micl-button__icon" aria-hidden="true" />
           重试
-        </v-btn>
+        </button>
       </div>
 
       <article
@@ -106,24 +107,26 @@ onBeforeUnmount(() => {
       />
 
       <footer class="reader-view__foot">
-        <span class="m3-mono reader-view__chapter-no">{{ chapterLabel }}</span>
+        <span class="mono reader-view__chapter-no">{{ chapterLabel }}</span>
         <div class="reader-view__foot-actions">
-          <v-btn
-            variant="tonal"
+          <button
+            type="button"
+            class="micl-button-tonal-m"
             :disabled="reader.chapterIndex <= 0"
-            prepend-icon="mdi-chevron-up"
             @click="reader.prevChapter()"
           >
+            <i class="mdi mdi-chevron-up micl-button__icon" aria-hidden="true" />
             上一章
-          </v-btn>
-          <v-btn
-            variant="tonal"
+          </button>
+          <button
+            type="button"
+            class="micl-button-tonal-m"
             :disabled="reader.chapterIndex >= reader.chapters.length - 1"
-            append-icon="mdi-chevron-down"
             @click="reader.nextChapter()"
           >
             下一章
-          </v-btn>
+            <i class="mdi mdi-chevron-down micl-button__icon" aria-hidden="true" />
+          </button>
         </div>
       </footer>
     </div>
@@ -223,17 +226,23 @@ onBeforeUnmount(() => {
   padding: 48px 0;
 }
 
+.reader-view__error-icon {
+  font-size: 40px;
+  color: var(--md-sys-color-error);
+}
+
 .reader-view__error-msg {
   color: var(--md-sys-color-on-surface-variant);
   text-align: center;
   word-break: break-all;
 }
 
-/* 阅读底色（三档）——纯色表面，无任何材质感 */
+/* 阅读底色（三档）——纯色表面 */
 .reading--paper {
   background: var(--md-sys-color-surface);
   color: var(--md-sys-color-on-surface);
 }
+
 .reading--paper .reader-view__book,
 .reading--paper .reader-view__chapter-title {
   color: var(--md-sys-color-on-surface);
@@ -243,17 +252,21 @@ onBeforeUnmount(() => {
   background: #e6f0e3;
   color: #243020;
 }
+
 .reading--green .reader-view__book,
 .reading--green .reader-view__chapter-title {
   color: #243020;
 }
+
 .reading--green .reader-view__author,
 .reading--green .reader-view__chapter-no {
   color: #51604c;
 }
+
 .reading--green .reader-view__rule {
   background: #3f6a3a;
 }
+
 .reading--green .reader-view__foot {
   border-top-color: #b8c9b3;
 }
@@ -262,17 +275,21 @@ onBeforeUnmount(() => {
   background: #101414;
   color: #cdd6d4;
 }
+
 .reading--ink .reader-view__book,
 .reading--ink .reader-view__chapter-title {
   color: #e4eae8;
 }
+
 .reading--ink .reader-view__author,
 .reading--ink .reader-view__chapter-no {
   color: #8a9593;
 }
+
 .reading--ink .reader-view__rule {
   background: #4ddad6;
 }
+
 .reading--ink .reader-view__foot {
   border-top-color: #2a3130;
 }
