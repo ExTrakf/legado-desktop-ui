@@ -1,0 +1,12 @@
+/* M3 Elevation Tokens
+   原则：层次主要靠 tonal 表面（surface-container 层级）表达，
+   阴影仅作辅助且柔和，拒绝拟物重阴影。
+   阴影 X: 0dp 1 2 3 4 5（M3 shadow tokens，按需用 1/2/3 档）
+*/
+
+:root {
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1: 0 1px 2px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.06);
+  --md-sys-elevation-level2: 0 1px 2px rgb(0 0 0 / 0.14), 0 2px 6px rgb(0 0 0 / 0.08);
+  --md-sys-elevation-level3: 0 4px 8px rgb(0 0 0 / 0.16), 0 2px 4px rgb(0 0 0 / 0.08);
+}

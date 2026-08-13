@@ -1,0 +1,36 @@
+{
+  "name": "legado-desktop-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "gen:tokens": "rolldown scripts/generate-m3-tokens.mjs --file .tmp/gen-tokens.mjs --platform node --format esm && node .tmp/gen-tokens.mjs",
+    "tauri": "tauri",
+    "dev:tauri": "tauri dev",
+    "build:tauri": "tauri build"
+  },
+  "dependencies": {
+    "@mdi/font": "7.4.47",
+    "@tauri-apps/api": "^2.11.1",
+    "pinia": "4.0.2",
+    "vue": "3.5.41",
+    "vue-router": "5.2.0",
+    "vuetify": "4.1.8"
+  },
+  "devDependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/noto-sans-sc": "^5.3.0",
+    "@fontsource/noto-serif-sc": "^5.3.0",
+    "@material/material-color-utilities": "^0.4.0",
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^26.2.0",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.1",
+    "vue-tsc": "^3.3.9"
+  }
+}

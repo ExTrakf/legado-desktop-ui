@@ -1,0 +1,25 @@
+[package]
+name = "legado-desktop"
+version = "0.1.0"
+description = "Legado 开源阅读桌面端（Tauri）"
+authors = ["legado-desktop-ui"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "legado_desktop_lib"
+# 纯桌面应用只需 rlib。cdylib/staticlib 是 iOS/Android 用的，
+# 在 GNU/MinGW 下生成 cdylib DLL 时 ld 会因 windows crate 海量导出符号
+# 报 "export ordinal too large"（PE 序号上限 65535）。
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.3", features = [] }
+tauri-plugin-log = "2"

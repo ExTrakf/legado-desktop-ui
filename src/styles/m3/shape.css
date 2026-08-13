@@ -1,0 +1,11 @@
+/* M3 Shape Tokens — 分层圆角，避免组件一律同角 */
+
+:root {
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-extra-large: 28px;
+
+  --md-sys-shape-corner-full: 9999px;
+}

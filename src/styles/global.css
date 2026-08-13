@@ -1,0 +1,107 @@
+/* 全局基础样式（Token 汇入 + 基础 reset） */
+
+@import './m3/color.css';
+@import './m3/typography.css';
+@import './m3/shape.css';
+@import './m3/elevation.css';
+@import './m3/motion.css';
+@import './m3/state.css';
+@import './fonts.css';
+
+:root {
+  /* 语义化别名：业务代码用这些，不直接抓 raw token */
+  --app-color-bg: var(--md-sys-color-surface);
+  --app-color-surface-1: var(--md-sys-color-surface-container-low);
+  --app-color-surface-2: var(--md-sys-color-surface-container);
+  --app-color-surface-3: var(--md-sys-color-surface-container-high);
+  --app-color-text: var(--md-sys-color-on-surface);
+  --app-color-text-muted: var(--md-sys-color-on-surface-variant);
+  --app-color-outline: var(--md-sys-color-outline-variant);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: var(--md-ref-typeface-body);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  color: var(--app-color-text);
+  background: var(--app-color-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 键盘可达性：全站可见 focus 环 */
+:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+::selection {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+/* 语义化工具类 */
+.m3-display-large {
+  font-family: var(--md-ref-typeface-display);
+  font-size: var(--md-sys-typescale-display-large-size);
+  line-height: var(--md-sys-typescale-display-large-line-height);
+  font-weight: var(--md-sys-typescale-display-large-weight);
+  letter-spacing: var(--md-sys-typescale-display-large-tracking);
+}
+
+.m3-headline-small {
+  font-family: var(--md-ref-typeface-display);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+}
+
+.m3-title-medium {
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+}
+
+.m3-body-medium {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: var(--md-sys-typescale-body-medium-weight);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+}
+
+.m3-label-large {
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+
+.m3-mono {
+  font-family: var(--md-ref-typeface-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.m3-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-sys-color-outline-variant) transparent;
+}

@@ -1,0 +1,45 @@
+{
+  "project": "legado-desktop-ui",
+  "updatedAt": "2026-08-12",
+  "status": "designing",
+  "platform": "Tauri 桌面应用（Rust 壳 + Web 前端），不再以纯 Web 形式发布",
+  "designDirection": {
+    "framework": "Material Design 3",
+    "uiBase": "Vuetify 3 + 自有 M3 Design Tokens + App Components",
+    "stack": "Vite + Vue 3 + TypeScript + Pinia + Vue Router + Tauri 2",
+    "seedColor": "#006A68 青绿 teal",
+    "readingSurface": "默认浅色青白，可切 护眼青 / 夜间黑",
+    "icons": "MDI 矢量图标，禁止 emoji",
+    "typography": "Noto Serif SC（展示/正文） + Noto Sans SC（UI） + JetBrains Mono（数据）"
+  },
+  "toolchain": {
+    "rust": "E:\\Program\\rust（rustup home .rustup + cargo home .cargo，工具链 stable-x86_64-pc-windows-gnu）",
+    "linker": "MinGW-w64 WinLibs POSIX UCRT（winget 安装）",
+    "webview2": "系统已装 Edge WebView2 运行时",
+    "msvc": "不使用 MSVC（按用户要求）"
+  },
+  "doing": [
+    "当前阶段：后端真实接入已完成，进入验收与打磨",
+    "已接通：书架(getBookshelf/getBookGroups/deleteBook)、目录(getChapterList)、正文(getBookContent)、封面/图片代理(/cover /image)、进度(saveBookProgress)、书源(get/save/deleteBookSource)、WS 多源搜索(/searchBook 令牌鉴权)、令牌(setJsSourceToken/getJsSourceApiTokenRequired)",
+    "mock 已移除，全部数据来自真实后端",
+    "每个 todo 完成后停止并做最严格全量测试，把教训写入 docs/LESSONS.md"
+  ],
+  "forbidden": [
+    "禁止任何拟物 / 复古风：皮革、木纹、纸张纹理、立体凸起、仿真材质渐变、拟真阴影",
+    "禁止 emoji 作为界面图标（一律 MDI 矢量图标）",
+    "禁止散落的具体色值/字号/圆角（必须走 --md-sys-* token）",
+    "禁止 M3 默认紫色与 '圆角+紫' 的模板观感",
+    "禁止通用 AI 默认：米白+衬线+陶土 / 纯黑+酸绿 / 报纸式细线",
+    "禁止每个组件各写一套 hover/focus（统一 State Layer）",
+    "禁止为了装饰而用 01/02/03 编号（结构要承载真实信息）",
+    "未与用户确认前禁止提交 git commit",
+    "禁止跳过 lint/typecheck/build 全量验证"
+  ],
+  "future": [
+    "搜索增强：搜索作用域/换源（书源切换后拉取新目录与正文）",
+    "书源管理完善：新增/编辑（规则编辑器）、批量导入（JS 源 text/plain）、书源调试（WS bookSourceDebug）",
+    "阅读器扩展：听书(TTS)、替换规则实时预览、缓存管理（cacheBook）、HTTP 日志",
+    "RSS 源与替换规则页面",
+    "正式打包发布（tauri build + 图标/签名）"
+  ]
+}
