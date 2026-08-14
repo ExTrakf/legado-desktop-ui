@@ -7,10 +7,44 @@ const props = defineProps<{
   book: Book
 }>()
 
-const emit = defineEmits<{ open: [Book]; delete: [Book] }>()
+const emit = defineEmits<{ open: [Book]; delete: [Book]; detail: [Book] }>()
 
 const imgFailed = ref(false)
 const firstChar = computed(() => props.book.name.trim().charAt(0) || '阅')
+
+/* 长按封面 → 详情；短按 → 阅读器 */
+const LONG_PRESS_MS = 550
+let pressTimer: number | undefined
+let longFired = false
+let pressX = 0
+let pressY = 0
+const pressing = ref(false)
+
+function onPointerDown(e: PointerEvent) {
+  if ((e.target as HTMLElement).closest('.book-card__delete')) return
+  longFired = false
+  pressing.value = true
+  pressX = e.clientX
+  pressY = e.clientY
+  window.clearTimeout(pressTimer)
+  pressTimer = window.setTimeout(() => {
+    longFired = true
+    emit('detail', props.book)
+  }, LONG_PRESS_MS)
+}
+
+function onPointerMove(e: PointerEvent) {
+  // 拖动超过阈值视为滑动，取消长按
+  if (Math.abs(e.clientX - pressX) > 8 || Math.abs(e.clientY - pressY) > 8) {
+    window.clearTimeout(pressTimer)
+    pressing.value = false
+  }
+}
+
+function cancelLongPress() {
+  window.clearTimeout(pressTimer)
+  pressing.value = false
+}
 
 watch(
   () => props.book.coverUrl,
@@ -31,6 +65,10 @@ const progressPercent = computed(() => {
 })
 
 function onOpen() {
+  if (longFired) {
+    longFired = false
+    return
+  }
   emit('open', props.book)
 }
 </script>
@@ -40,12 +78,17 @@ function onOpen() {
     class="book-card"
     role="button"
     tabindex="0"
-    :aria-label="`打开《${book.name}》`"
+    :aria-label="`打开《${book.name}》，长按查看详情`"
     @click="onOpen"
+    @pointerdown="onPointerDown"
+    @pointerup="cancelLongPress"
+    @pointermove="onPointerMove"
+    @pointerleave="cancelLongPress"
+    @pointercancel="cancelLongPress"
     @keydown.enter.prevent="onOpen"
     @keydown.space.prevent="onOpen"
   >
-    <div class="book-card__cover">
+    <div class="book-card__cover" :class="{ 'book-card__cover--pressing': pressing }">
       <img
         v-if="coverSrc && !imgFailed"
         :src="coverSrc"
@@ -107,6 +150,12 @@ function onOpen() {
 .book-card:focus-visible .book-card__cover {
   transform: translateY(-3px);
   box-shadow: var(--md-sys-elevation-level3);
+}
+
+/* 长按反馈：封面微微放大（覆盖 hover 上浮） */
+.book-card .book-card__cover--pressing,
+.book-card:hover .book-card__cover--pressing {
+  transform: scale(1.05);
 }
 
 .book-card__cover img {
@@ -184,6 +233,10 @@ function onOpen() {
   .book-card__cover,
   .book-card__cover img {
     transition: none;
+  }
+
+  .book-card__cover--pressing {
+    transform: none;
   }
 
   .book-card__delete {

@@ -24,6 +24,10 @@ function openBook(book: Book) {
   void router.push({ path: `/book/${encodeURIComponent(book.bookUrl)}` })
 }
 
+function openDetail(book: Book) {
+  void router.push({ path: `/book/${encodeURIComponent(book.bookUrl)}/detail` })
+}
+
 function setGroup(id: number) {
   shelf.activeGroupId = id
 }
@@ -139,6 +143,7 @@ async function confirmDelete() {
         :key="book.bookUrl"
         :book="book"
         @open="openBook"
+        @detail="openDetail"
         @delete="askDelete"
       />
     </div>

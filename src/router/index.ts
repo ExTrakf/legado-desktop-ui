@@ -56,6 +56,12 @@ const router = createRouter({
           component: () => import('@/views/SettingsView.vue'),
           meta: { title: '设置' },
         },
+        {
+          path: 'book/:url/detail',
+          name: 'book-detail',
+          component: () => import('@/views/BookDetailView.vue'),
+          meta: { title: '书籍详情', back: '/bookshelf' },
+        },
       ],
     },
     {

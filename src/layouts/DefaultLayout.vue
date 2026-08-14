@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { navItems } from '@/components/navigation/navItems'
 import { useThemeStore } from '@/stores/theme'
 import { useThemeControl } from '@/composables/useTheme'
 import { useMediaQuery } from '@/composables/useMediaQuery'
+import { useBookshelfStore } from '@/stores/bookshelf'
+import { addLocalBook } from '@/api/imports'
+import AppSnackbar from '@/components/app/AppSnackbar.vue'
 
 const route = useRoute()
+const router = useRouter()
 const themeStore = useThemeStore()
 const { name } = themeStore
 const { toggle } = useThemeControl()
@@ -36,9 +40,66 @@ function onMainScroll() {
 
 onBeforeUnmount(() => {
   if (scrollRaf) cancelAnimationFrame(scrollRaf)
+  document.removeEventListener('pointerdown', onOutsideDown)
+  window.removeEventListener('keydown', onMenuKeydown)
 })
 
 const pageTitle = computed(() => (route.meta.title as string) ?? '')
+const backTo = computed(() => (route.meta.back as string) ?? '')
+
+/* 顶栏折叠菜单（从按钮处弹出的卡片列表） */
+const shelf = useBookshelfStore()
+const moreBtn = ref<HTMLElement | null>(null)
+const moreOpen = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+const snackbar = ref('')
+
+const hasMoreActions = computed(() => route.path === '/bookshelf')
+
+const moreItems = computed(() => {
+  if (route.path !== '/bookshelf') return []
+  return [
+    { key: 'local', label: '添加本地书籍', icon: 'mdi-file-plus-outline', action: pickLocalBook },
+  ]
+})
+
+function pickLocalBook() {
+  moreOpen.value = false
+  fileInput.value?.click()
+}
+
+async function onLocalFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    await addLocalBook(file.name, file)
+    snackbar.value = `已导入本地书籍：${file.name}`
+    void shelf.loadBooks(true)
+  } catch (err) {
+    snackbar.value = (err as Error).message
+  } finally {
+    input.value = ''
+  }
+}
+
+function onOutsideDown(e: PointerEvent) {
+  if (moreBtn.value && !moreBtn.value.contains(e.target as Node)) moreOpen.value = false
+}
+
+function onMenuKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') moreOpen.value = false
+}
+
+watch(moreOpen, (v) => {
+  if (v) {
+    document.addEventListener('pointerdown', onOutsideDown)
+    window.addEventListener('keydown', onMenuKeydown)
+  } else {
+    document.removeEventListener('pointerdown', onOutsideDown)
+    window.removeEventListener('keydown', onMenuKeydown)
+  }
+})
 
 function isActive(to: string) {
   return route.path === to || (to !== '/' && route.path.startsWith(to))
@@ -56,7 +117,16 @@ const bottomItems = computed(() => navItems.slice(0, 4))
     >
       <div class="micl-appbar__leading">
         <button
-          v-if="!isDesktop"
+          v-if="backTo"
+          type="button"
+          class="micl-iconbutton-standard-m"
+          aria-label="返回"
+          @click="router.push(backTo)"
+        >
+          <i class="mdi mdi-arrow-left" aria-hidden="true" />
+        </button>
+        <button
+          v-else-if="!isDesktop"
           type="button"
           class="micl-iconbutton-standard-m"
           aria-label="打开导航菜单"
@@ -80,8 +150,37 @@ const bottomItems = computed(() => navItems.slice(0, 4))
         >
           <i :class="name === 'dark' ? 'mdi mdi-white-balance-sunny' : 'mdi mdi-weather-night'" aria-hidden="true" />
         </button>
+        <div v-if="hasMoreActions" class="app-shell__more">
+          <button
+            ref="moreBtn"
+            type="button"
+            class="micl-iconbutton-standard-m"
+            :aria-label="'更多操作'"
+            :aria-expanded="moreOpen ? 'true' : 'false'"
+            @click="moreOpen = !moreOpen"
+          >
+            <i class="mdi mdi-dots-horizontal" aria-hidden="true" />
+          </button>
+          <transition name="pop">
+            <div v-if="moreOpen" class="app-shell__menu" role="menu">
+              <button
+                v-for="item in moreItems"
+                :key="item.key"
+                type="button"
+                class="app-shell__menu-item"
+                role="menuitem"
+                @click="item.action()"
+              >
+                <i :class="`mdi ${item.icon}`" aria-hidden="true" />
+                {{ item.label }}
+              </button>
+            </div>
+          </transition>
+        </div>
       </div>
     </header>
+
+    <input ref="fileInput" type="file" accept=".txt,.epub" hidden @change="onLocalFile" />
 
     <div class="app-shell__body">
       <div
@@ -139,6 +238,10 @@ const bottomItems = computed(() => navItems.slice(0, 4))
         </router-link>
       </div>
     </nav>
+
+    <AppSnackbar :open="!!snackbar" @update:open="snackbar = ''">
+      {{ snackbar }}
+    </AppSnackbar>
   </div>
 </template>
 
@@ -167,6 +270,72 @@ const bottomItems = computed(() => navItems.slice(0, 4))
 .app-shell__bar--scrolled {
   background: var(--md-sys-color-surface-container-high);
   box-shadow: var(--md-sys-elevation-level3);
+}
+
+/* 顶栏折叠菜单：从按钮处弹出的卡片列表 */
+.app-shell__more {
+  position: relative;
+  display: inline-flex;
+}
+
+.app-shell__menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  min-width: 208px;
+  padding: 8px;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-surface-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-level3);
+}
+
+.app-shell__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  font-size: var(--md-sys-typescale-body-medium-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-shell__menu-item:hover,
+.app-shell__menu-item:focus-visible {
+  background: var(--md-sys-color-surface-container-high);
+}
+
+.app-shell__menu-item i {
+  font-size: 20px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.pop-enter-active,
+.pop-leave-active {
+  transition:
+    opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized),
+    transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(0.92) translateY(-6px);
+  transform-origin: top right;
+}
+
+.pop-enter-to,
+.pop-leave-from {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transform-origin: top right;
 }
 
 .app-shell__brand {
@@ -301,7 +470,9 @@ const bottomItems = computed(() => navItems.slice(0, 4))
 
   .nav-rail,
   .fade-enter-active,
-  .fade-leave-active {
+  .fade-leave-active,
+  .pop-enter-active,
+  .pop-leave-active {
     transition: none;
   }
 }
