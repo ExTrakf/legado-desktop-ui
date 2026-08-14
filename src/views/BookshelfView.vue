@@ -103,9 +103,14 @@ async function confirmDelete() {
       </div>
     </div>
 
-    <div v-if="loading && books.length === 0" class="empty-state">
-      <progress class="micl-circular-progress" aria-label="正在加载书架" />
-      <span class="empty-state__hint">正在加载书架…</span>
+    <div v-if="loading && books.length === 0" class="bookshelf__grid" aria-hidden="true">
+      <div v-for="n in 12" :key="n" class="book-card-skel">
+        <div class="book-card-skel__cover" />
+        <div class="book-card-skel__line" />
+        <div class="book-card-skel__line book-card-skel__line--short" />
+        <div class="book-card-skel__bar" />
+      </div>
+      <span class="sr-only">正在加载书架…</span>
     </div>
 
     <div v-else-if="error && books.length === 0" class="empty-state">
@@ -178,6 +183,75 @@ async function confirmDelete() {
   gap: 24px 18px;
 }
 
+/* 骨架屏：与 BookCard 同构的占位块，微光脉动由 .book-card-skel::after 提供 */
+.book-card-skel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.book-card-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgb(255 255 255 / 0.3) 45%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.6s var(--md-sys-motion-easing-standard) infinite;
+  pointer-events: none;
+}
+
+[data-theme='dark'] .book-card-skel::after {
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgb(255 255 255 / 0.12) 45%,
+    transparent 60%
+  );
+}
+
+.book-card-skel__cover {
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-surface-container-high);
+}
+
+.book-card-skel__line {
+  height: 12px;
+  width: 100%;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.book-card-skel__line--short {
+  width: 60%;
+}
+
+.book-card-skel__bar {
+  height: 4px;
+  width: 60%;
+  margin-top: 2px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+@keyframes skel-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -120% 0;
+  }
+}
+
 @media (max-width: 600px) {
   .bookshelf__grid {
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
@@ -191,6 +265,12 @@ async function confirmDelete() {
 
   .bookshelf__search {
     max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-card-skel::after {
+    display: none;
   }
 }
 </style>

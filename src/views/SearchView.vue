@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSearchStore } from '@/stores/search'
 import { useBookshelfStore } from '@/stores/bookshelf'
@@ -17,7 +17,31 @@ const input = ref('')
 const addingUrl = ref('')
 const snackbar = ref('')
 
+const doneCount = computed(() => search.groups.filter((g) => g.done).length)
+
+onMounted(() => {
+  void shelf.loadBooks()
+})
+
 onBeforeUnmount(() => search.stop())
+
+/** 入场错峰：行号封顶，避免大批量推送时延迟累计过大 */
+function rowStyle(i: number) {
+  return { '--row-i': String(Math.min(i, 8)) }
+}
+
+/** 结果卡片第二行：优先简介，缺省时回退到最新章节 */
+function introText(b: SearchBook): string {
+  const intro = b.intro?.trim()
+  if (intro) return intro
+  if (b.latestChapterTitle) return `最新：${b.latestChapterTitle}`
+  return ''
+}
+
+/** 是否已在书架（用于加入按钮的已入架状态） */
+function inShelf(bookUrl: string) {
+  return shelf.books.some((x) => x.bookUrl === bookUrl)
+}
 
 function startSearch() {
   void search.start(input.value)
@@ -127,7 +151,15 @@ async function addToShelf(b: SearchBook) {
     <div v-else class="search-view__results">
       <div class="search-view__summary">
         <span class="search-view__summary-text">
-          共找到 <span class="mono">{{ total }}</span> 本 · {{ keyword }}
+          共 <span class="mono">{{ total }}</span> 本 · “{{ keyword }}”
+          <span class="search-view__summary-sources">
+            <template v-if="running">
+              搜索中 · 已完成 <span class="mono">{{ doneCount }}</span>/{{ groups.length }} 个书源
+            </template>
+            <template v-else>
+              来自 <span class="mono">{{ groups.length }}</span> 个书源
+            </template>
+          </span>
         </span>
         <progress v-if="running" class="micl-linear-progress search-view__summary-bar" aria-label="搜索中" />
       </div>
@@ -139,11 +171,12 @@ async function addToShelf(b: SearchBook) {
           <span class="mono search-view__group-count">{{ group.books.length }}</span>
         </h3>
         <div
-          v-for="b in group.books"
+          v-for="(b, idx) in group.books"
           :key="b.bookUrl"
           class="micl-card-outlined search-view__row clickable"
           role="button"
           tabindex="0"
+          :style="rowStyle(idx)"
           @click="openBook(b)"
           @keydown.enter="openBook(b)"
         >
@@ -154,23 +187,26 @@ async function addToShelf(b: SearchBook) {
             :alt="`《${b.name}》封面`"
             loading="lazy"
           />
-          <div v-else class="search-view__cover search-view__cover--empty" aria-hidden="true" />
+          <div v-else class="search-view__cover search-view__cover--empty" aria-hidden="true">
+            {{ b.name.trim().charAt(0) || '阅' }}
+          </div>
           <div class="search-view__meta">
-            <span class="search-view__name text-truncate">{{ b.name }}</span>
-            <span class="search-view__author text-truncate">{{ b.author }}</span>
-            <span v-if="b.latestChapterTitle" class="search-view__latest text-truncate">
-              {{ b.latestChapterTitle }}
-            </span>
+            <div class="search-view__headline">
+              <span class="search-view__name text-truncate">{{ b.name }}</span>
+              <span v-if="b.author" class="search-view__author text-truncate">{{ b.author }}</span>
+            </div>
+            <span v-if="introText(b)" class="search-view__intro">{{ introText(b) }}</span>
           </div>
           <div class="search-view__actions">
             <button
               type="button"
               class="micl-iconbutton-tonal-s"
-              :disabled="addingUrl === b.bookUrl"
-              :aria-label="`加入书架 ${b.name}`"
+              :disabled="inShelf(b.bookUrl) || addingUrl === b.bookUrl"
+              :aria-label="inShelf(b.bookUrl) ? `已在书架 ${b.name}` : `加入书架 ${b.name}`"
+              :title="inShelf(b.bookUrl) ? '已在书架' : '加入书架'"
               @click.stop="addToShelf(b)"
             >
-              <i class="mdi mdi-bookshelf" aria-hidden="true" />
+              <i :class="inShelf(b.bookUrl) ? 'mdi mdi-check' : 'mdi mdi-bookshelf'" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -199,14 +235,35 @@ async function addToShelf(b: SearchBook) {
   transform: translateY(-50%);
 }
 
+/* 原生 search 清除叉号会挤在发送键右侧，去掉（右侧操作由发送键承担） */
+.search-view__input input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .search-view__summary {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-surface-container);
+  box-shadow: var(--md-sys-elevation-level1);
 }
 
 .search-view__summary-text {
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 500;
   color: var(--md-sys-color-on-surface-variant);
+}
+
+.search-view__summary-sources {
+  margin-inline-start: 6px;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-outline);
 }
 
 .search-view__group {
@@ -231,10 +288,14 @@ async function addToShelf(b: SearchBook) {
 
 .search-view__row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
+  gap: 14px;
+  padding: 10px 14px;
   cursor: pointer;
+  animation: search-row-in var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized)
+    both;
+  animation-delay: calc(var(--row-i, 0) * 25ms);
 }
 
 .search-view__cover {
@@ -247,26 +308,53 @@ async function addToShelf(b: SearchBook) {
 }
 
 .search-view__cover--empty {
-  display: block;
+  display: grid;
+  place-items: center;
+  font-family: var(--md-ref-typeface-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .search-view__meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
 }
 
+.search-view__headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
 .search-view__name {
+  flex: 1 1 0;
+  min-width: 0;
   font-family: var(--md-ref-typeface-display);
+  font-size: var(--md-sys-typescale-title-medium-size);
   font-weight: 600;
   color: var(--md-sys-color-on-surface);
 }
 
-.search-view__author,
-.search-view__latest {
+.search-view__author {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: var(--md-sys-typescale-label-medium-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.search-view__intro {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 36px;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: 1.5;
   color: var(--md-sys-color-on-surface-variant);
 }
 
@@ -274,5 +362,23 @@ async function addToShelf(b: SearchBook) {
   display: flex;
   gap: 4px;
   flex: 0 0 auto;
+}
+
+@keyframes search-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-view__row {
+    animation: none;
+  }
 }
 </style>

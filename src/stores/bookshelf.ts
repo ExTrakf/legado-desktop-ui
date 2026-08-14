@@ -26,9 +26,6 @@ export const useBookshelfStore = defineStore('bookshelf', {
         )
       })
     },
-    hasGroup(state) {
-      return state.activeGroupId >= 0
-    },
   },
   actions: {
     async loadBooks(force = false) {

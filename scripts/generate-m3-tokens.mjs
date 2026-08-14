@@ -10,7 +10,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outFile = resolve(__dirname, '../src/styles/m3/color.css')
 
-const SEED = '#006A68'
+const SEED = '#6750A4'
 const theme = themeFromSourceColor(argbFromHex(SEED))
 
 const ROLE_KEYS = [

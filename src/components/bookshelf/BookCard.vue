@@ -98,12 +98,15 @@ function onOpen() {
   border-radius: var(--md-sys-shape-corner-medium);
   background: var(--md-sys-color-surface-container-high);
   box-shadow: var(--md-sys-elevation-level1);
-  transition: transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+  transition:
+    transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized),
+    box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
 }
 
 .book-card:hover .book-card__cover,
 .book-card:focus-visible .book-card__cover {
   transform: translateY(-3px);
+  box-shadow: var(--md-sys-elevation-level3);
 }
 
 .book-card__cover img {
@@ -111,6 +114,12 @@ function onOpen() {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform var(--md-sys-motion-duration-long) var(--md-sys-motion-easing-emphasized);
+}
+
+.book-card:hover .book-card__cover img,
+.book-card:focus-visible .book-card__cover img {
+  transform: scale(1.05);
 }
 
 .book-card__fallback {
@@ -172,10 +181,18 @@ function onOpen() {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book-card__cover {
+  .book-card__cover,
+  .book-card__cover img {
     transition: none;
   }
 
+  .book-card__delete {
+    opacity: 1;
+  }
+}
+
+/* 触屏设备没有 hover：删除按钮常驻可见 */
+@media (hover: none) {
   .book-card__delete {
     opacity: 1;
   }

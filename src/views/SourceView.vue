@@ -224,7 +224,7 @@ async function confirmDelete() {
         <i
           :class="s.enabled ? 'mdi mdi-source-branch' : 'mdi mdi-source-branch-off-outline'"
           :style="s.enabled ? 'color: var(--md-sys-color-primary)' : ''"
-          style="font-size: 28px"
+          style="font-size: 24px"
           aria-hidden="true"
         />
         <div class="card-row__main">
@@ -239,7 +239,7 @@ async function confirmDelete() {
         <div class="card-row__actions">
           <button
             type="button"
-            class="micl-iconbutton-standard-s"
+            class="micl-iconbutton-standard-xs"
             :aria-label="`调试 ${s.bookSourceName}`"
             @click="openDebug(s)"
           >
@@ -247,7 +247,7 @@ async function confirmDelete() {
           </button>
           <button
             type="button"
-            class="micl-iconbutton-standard-s"
+            class="micl-iconbutton-standard-xs"
             :aria-label="`删除 ${s.bookSourceName}`"
             @click="confirming = s"
           >

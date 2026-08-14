@@ -29,19 +29,17 @@ onMounted(() => {
 
 .page-enter-active,
 .page-leave-active {
-  transition:
-    opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard),
-    transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+  transition: opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
 }
 
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
+.page-enter-from,
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
+}
+
+.page-enter-to,
+.page-leave-from {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

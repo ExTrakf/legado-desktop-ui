@@ -11,19 +11,9 @@ export async function getRssSources(): Promise<RssSource[]> {
   }
 }
 
-/** 查询单个订阅源 */
-export async function getRssSource(url: string): Promise<RssSource> {
-  return request<RssSource>('/getRssSource', { query: { url } })
-}
-
 /** 保存单个订阅源（写路由，令牌保护） */
 export async function saveRssSource(source: RssSource): Promise<void> {
   await request<string>('/saveRssSource', { method: 'POST', body: source })
-}
-
-/** 批量保存订阅源 */
-export async function saveRssSources(sources: RssSource[]): Promise<void> {
-  await request<string>('/saveRssSources', { method: 'POST', body: sources })
 }
 
 /** 删除订阅源（写路由，令牌保护） */

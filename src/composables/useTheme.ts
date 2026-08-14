@@ -14,9 +14,22 @@ export function useThemeControl() {
     document.documentElement.style.colorScheme = name
   }
 
+  /** M3 色彩渐变：主题切换时以 View Transitions 做全页 crossfade */
+  function crossfade(apply: () => void) {
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => void }
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced || typeof doc.startViewTransition !== 'function') {
+      apply()
+      return
+    }
+    doc.startViewTransition(apply)
+  }
+
   function setTheme(name: AppTheme) {
-    store.set(name)
-    applyDataTheme(name)
+    crossfade(() => {
+      store.set(name)
+      applyDataTheme(name)
+    })
   }
 
   function toggle() {

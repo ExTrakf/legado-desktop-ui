@@ -8,12 +8,16 @@ export interface ApiResponse<T = unknown> {
 
 export type ReadingSurface = 'paper' | 'green' | 'ink'
 export type ReadingFont = 'serif' | 'sans'
+export type ReadingMode = 'scroll' | 'page'
 
 export interface ReaderSettings {
   fontSizeRem: number
   lineHeight: number
   surface: ReadingSurface
   font: ReadingFont
+  mode: ReadingMode
+  /** 自定义背景色（hex），null 表示跟随底色预设 */
+  bgColor: string | null
 }
 
 export interface BookGroup {

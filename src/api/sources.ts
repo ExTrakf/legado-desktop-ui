@@ -16,11 +16,6 @@ export async function saveBookSource(source: BookSource): Promise<void> {
   await request<string>('/saveBookSource', { method: 'POST', body: source })
 }
 
-/** 保存多个书源 */
-export async function saveBookSources(sources: BookSource[]): Promise<void> {
-  await request<string>('/saveBookSources', { method: 'POST', body: sources })
-}
-
 /** 删除书源（写路由，令牌保护） */
 export async function deleteBookSources(sources: BookSource[]): Promise<void> {
   await request<string>('/deleteBookSources', { method: 'POST', body: sources })

@@ -24,11 +24,6 @@ export async function deleteBook(book: Book): Promise<void> {
   await request<string>('/deleteBook', { method: 'POST', body: book, auth: false })
 }
 
-/** 刷新目录（服务端拉取最新章节列表并入库） */
-export async function refreshToc(bookUrl: string): Promise<Chapter[]> {
-  return request<Chapter[]>('/refreshToc', { query: { url: bookUrl } })
-}
-
 /** 获取目录（缺目录时后端自动刷新） */
 export async function getChapterList(bookUrl: string): Promise<Chapter[]> {
   return request<Chapter[]>('/getChapterList', { query: { url: bookUrl } })

@@ -21,9 +21,6 @@ export const useSearchStore = defineStore('search', {
     total(state) {
       return state.groups.reduce((n, g) => n + g.books.length, 0)
     },
-    finishedSources(state) {
-      return state.groups.filter((g) => g.done).length
-    },
   },
   actions: {
     async start(keyword: string) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { navItems } from '@/components/navigation/navItems'
 import { useThemeStore } from '@/stores/theme'
@@ -13,13 +13,30 @@ const { toggle } = useThemeControl()
 
 const isDesktop = useMediaQuery('(min-width: 960px)')
 const drawerOpen = ref(false)
+const scrolled = ref(false)
+const mainEl = ref<HTMLElement | null>(null)
+let scrollRaf = 0
 
 watch(
   () => route.fullPath,
   () => {
     drawerOpen.value = false
+    mainEl.value?.scrollTo({ top: 0 })
   },
 )
+
+function onMainScroll() {
+  if (scrollRaf) return
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0
+    const el = mainEl.value
+    scrolled.value = !!el && el.scrollTop > 8
+  })
+}
+
+onBeforeUnmount(() => {
+  if (scrollRaf) cancelAnimationFrame(scrollRaf)
+})
 
 const pageTitle = computed(() => (route.meta.title as string) ?? '')
 
@@ -33,9 +50,13 @@ const bottomItems = computed(() => navItems.slice(0, 4))
 
 <template>
   <div class="app-shell">
-    <header class="micl-appbar app-shell__bar">
-      <div v-if="!isDesktop" class="micl-appbar__leading">
+    <header
+      class="micl-appbar app-shell__bar"
+      :class="{ 'app-shell__bar--scrolled': scrolled }"
+    >
+      <div class="micl-appbar__leading">
         <button
+          v-if="!isDesktop"
           type="button"
           class="micl-iconbutton-standard-m"
           aria-label="打开导航菜单"
@@ -43,6 +64,9 @@ const bottomItems = computed(() => navItems.slice(0, 4))
         >
           <i class="mdi mdi-menu" aria-hidden="true" />
         </button>
+        <span v-else class="app-shell__brand" aria-hidden="true">
+          <i class="mdi mdi-book-open-page-variant" />
+        </span>
       </div>
       <div class="micl-appbar__headline">
         <h1 class="app-shell__bar-title">{{ pageTitle }}</h1>
@@ -60,6 +84,12 @@ const bottomItems = computed(() => navItems.slice(0, 4))
     </header>
 
     <div class="app-shell__body">
+      <div
+        class="app-shell__scrim"
+        :class="{ 'app-shell__scrim--open': drawerOpen }"
+        aria-hidden="true"
+        @click="drawerOpen = false"
+      />
       <nav
         class="micl-navigationrail nav-rail"
         :class="{ 'nav-rail--open': drawerOpen }"
@@ -83,7 +113,7 @@ const bottomItems = computed(() => navItems.slice(0, 4))
         </div>
       </nav>
 
-      <main class="app-shell__main">
+      <main ref="mainEl" class="app-shell__main" @scroll="onMainScroll">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -122,15 +152,41 @@ const bottomItems = computed(() => navItems.slice(0, 4))
 
 .app-shell__bar {
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 10;
+  margin-inline: 16px;
+  margin-block-start: 12px;
+  border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-surface-container);
-  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  box-shadow: var(--md-sys-elevation-level2);
+  transition:
+    background-color var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard),
+    box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.app-shell__bar--scrolled {
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: var(--md-sys-elevation-level3);
+}
+
+.app-shell__brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-size: 20px;
 }
 
 .app-shell__bar-title {
   font-family: var(--md-ref-typeface-display);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
   font-weight: 600;
+  color: var(--md-sys-color-on-surface-container);
 }
 
 .app-shell__body {
@@ -154,6 +210,34 @@ const bottomItems = computed(() => navItems.slice(0, 4))
   block-size: 100%;
 }
 
+.app-shell__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--md-sys-color-scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+
+.app-shell__scrim--open {
+  opacity: 0.4;
+  pointer-events: auto;
+}
+
+/* 全局 border-box 会压扁 icon 的内容盒（24px + 16px 内边距），导致图标右偏；
+   恢复 content-box 让 icon 在 56px 指示条内居中 */
+.nav-rail :deep(.micl-navigationrail__icon),
+.nav-rail :deep(.micl-navigationrail__text) {
+  box-sizing: content-box;
+}
+
+/* 底部导航同理：图标在 64px 指示胶囊内右偏，恢复 content-box 居中 */
+.nav-bar :deep(.micl-navigationbar__icon),
+.nav-bar :deep(.micl-navigationbar__text) {
+  box-sizing: content-box;
+}
+
 @media (max-width: 959px) {
   .nav-rail {
     position: fixed;
@@ -172,22 +256,49 @@ const bottomItems = computed(() => navItems.slice(0, 4))
 }
 
 @media (min-width: 960px) {
+  .app-shell__scrim {
+    display: none;
+  }
+
   .nav-bar {
     display: none;
   }
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+.fade-enter-active {
+  transition:
+    opacity var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized),
+    transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
 }
 
-.fade-enter-from,
+.fade-leave-active {
+  transition: opacity var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .fade-leave-to {
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-shell__bar {
+    transition: none;
+  }
+
+  .app-shell__scrim {
+    transition: none;
+  }
+
   .nav-rail,
   .fade-enter-active,
   .fade-leave-active {
